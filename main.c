@@ -6,8 +6,8 @@
 #include <stdio.h>
 
 #define lado 101
-#define fil 10
-#define col 15
+#define Nfil 10
+#define Ncol 15
 #define font_size 30
 
 struct _hitBox{
@@ -18,13 +18,15 @@ struct _hitBox{
 };
 typedef struct _hitBox hitBox;
 
+struct _square{
+    int fil;
+    int col;
+};
+typedef struct _square square;
+
 struct _personaje {
-    int position_fil;
-    int position_col;
-    int oldPosition_fil;
-    int oldPosition_col;
-    int boardfil;
-    int boardcol;
+    square position;
+    square boardPlace;
     char direction; // U, D, L, R
     hitBox box;
     int velocity;
@@ -32,12 +34,13 @@ struct _personaje {
 typedef struct _personaje personaje;
 
 //Funciones lógicasM
-int moveTo(int board[fil][col], personaje *pnj, int newfil, int newcol);
-void power(int board[fil][col], personaje pnj);
+int moveTo(int board[Nfil][Ncol], personaje *pnj, int newfil, int newcol);
+square defineSquare(int filPixel, int colPixel);
+void power(int board[Nfil][Ncol], personaje pnj);
 
 //Funciones gráficas
 void draw_boardRectangle(int fila, int columna, ALLEGRO_COLOR color);
-void draw_pbj(personaje pbj, ALLEGRO_COLOR color, ALLEGRO_FONT *font);
+void draw_pnj(personaje pbj, ALLEGRO_COLOR color, ALLEGRO_FONT *font);
 void draw_board(ALLEGRO_BITMAP *bitmap, ALLEGRO_FONT *font, ALLEGRO_COLOR backColor, ALLEGRO_COLOR lineColor, ALLEGRO_COLOR numberColor);
 
 int main()
@@ -55,21 +58,19 @@ int main()
     int done = 0;
 
     int position[2];
-    int board[fil][col];
+    int board[Nfil][Ncol];
 
-    for(i=0; i<fil; i++)
-        for(j=0; j<col; j++)
+    for(i=0; i<Nfil; i++)
+        for(j=0; j<Ncol; j++)
             board[i][j]=0;
 
     board[0][0]=1;
 
     //Inicializando al jugador 1
-    player1.position_fil=51;
-    player1.position_col=51;
-    player1.oldPosition_fil=51;
-    player1.oldPosition_col=51;
-    player1.boardfil=1;
-    player1.boardcol=1;
+    player1.position.fil=51;
+    player1.position.col=51;
+    player1.boardPlace.fil=1;
+    player1.boardPlace.col=1;
     player1.direction='D';
     player1.box.leftBox=50;
     player1.box.rightBox=50;
@@ -89,7 +90,7 @@ int main()
     ALLEGRO_FONT *roboto = al_load_ttf_font("./src/fonts/Roboto/Roboto-Bold.ttf", font_size, 0);
 
     // Inicializando ventana
-    ALLEGRO_DISPLAY *ventana = al_create_display(col*lado, fil*lado);
+    ALLEGRO_DISPLAY *ventana = al_create_display(Ncol*lado, Nfil*lado);
     al_set_target_backbuffer(ventana);
 
     ALLEGRO_EVENT_QUEUE *event_queue = al_create_event_queue(); /*Creamos cola de eventos*/
@@ -98,10 +99,10 @@ int main()
 
 
     /* Crear bitmap para el fondo del tablero */
-    ALLEGRO_BITMAP *board_bitmap = al_create_bitmap(col * lado, fil * lado);
+    ALLEGRO_BITMAP *board_bitmap = al_create_bitmap(Ncol * lado, Nfil * lado);
     draw_board(board_bitmap, roboto, color_black, color_blue, color_white);
 
-    al_draw_text(roboto, color_white, (col*lado)/2, (fil*lado)/2, ALLEGRO_ALIGN_CENTRE, "Ingrese cualquier tecla para empezar.");
+    al_draw_text(roboto, color_white, (Ncol*lado)/2, (Nfil*lado)/2, ALLEGRO_ALIGN_CENTRE, "Ingrese cualquier tecla para empezar.");
 
     al_flip_display();
 
@@ -123,16 +124,16 @@ int main()
         {
             switch (ev.keyboard.keycode) {
                 case ALLEGRO_KEY_UP:
-                    moveTo(board, &player1, player1.position_fil-(5*player1.velocity), player1.position_col);                    
+                    moveTo(board, &player1, player1.position.fil-(5*player1.velocity), player1.position.col);                    
                     break;
                 case ALLEGRO_KEY_DOWN:
-                    moveTo(board, &player1, player1.position_fil+(5*player1.velocity), player1.position_col);
+                    moveTo(board, &player1, player1.position.fil+(5*player1.velocity), player1.position.col);
                     break;
                 case ALLEGRO_KEY_LEFT:
-                    moveTo(board, &player1, player1.position_fil, player1.position_col-(5*player1.velocity));
+                    moveTo(board, &player1, player1.position.fil, player1.position.col-(5*player1.velocity));
                     break;
                 case ALLEGRO_KEY_RIGHT:
-                    moveTo(board, &player1, player1.position_fil, player1.position_col+(5*player1.velocity));
+                    moveTo(board, &player1, player1.position.fil, player1.position.col+(5*player1.velocity));
                     break;
                 case ALLEGRO_KEY_SPACE:
                     power(board, player1);
@@ -147,9 +148,9 @@ int main()
         al_draw_bitmap(board_bitmap,0,0,0);
 
         /* Dibujar el tablero con colores en el backbuffer*/
-        for(i=0; i<fil; i++)
+        for(i=0; i<Nfil; i++)
         {
-            for(j=0; j<col; j++)
+            for(j=0; j<Ncol; j++)
             {
                 switch (board[i][j])
                 {
@@ -164,7 +165,7 @@ int main()
         }
 
         //Dibujando al jugador
-        draw_pbj(player1, color_purple1, roboto);
+        draw_pnj(player1, color_purple1, roboto);
         
         /* Actualizar pantalla */
         al_flip_display();
@@ -178,14 +179,10 @@ int main()
     return 0;
 }
 // funciones lógicas
-int moveTo(int board[fil][col], personaje *pnj, int newfil, int newcol)
+int moveTo(int board[Nfil][Ncol], personaje *pnj, int newfil, int newcol)
 {
-    //Definiendo la posición anterior antes del movimiento
-    pnj->oldPosition_col=pnj->position_col;
-    pnj->oldPosition_fil=pnj->position_fil;
-
     //Definiendo direccion de personaje
-    if((pnj->oldPosition_fil) < newfil) //Mirando abajo
+    if((pnj->position.fil) < newfil) //Mirando abajo
     {   
         if(pnj->direction != 'D')
         {
@@ -193,7 +190,7 @@ int moveTo(int board[fil][col], personaje *pnj, int newfil, int newcol)
             return 0;
         }
     }
-    else if((pnj->oldPosition_fil) > newfil) //Mirando arriba
+    else if((pnj->position.fil) > newfil) //Mirando arriba
     {
         if(pnj->direction != 'U')
         {
@@ -201,7 +198,7 @@ int moveTo(int board[fil][col], personaje *pnj, int newfil, int newcol)
             return 0;
         }
     }
-    else if((pnj->oldPosition_col) < newcol) //Mirando derecha
+    else if((pnj->position.col) < newcol) //Mirando derecha
     {
         if(pnj->direction != 'R')
         {
@@ -209,7 +206,7 @@ int moveTo(int board[fil][col], personaje *pnj, int newfil, int newcol)
             return 0;
         }
     }
-    else if((pnj->oldPosition_col) > newcol) //Mirando izquierda
+    else if((pnj->position.col) > newcol) //Mirando izquierda
     {
         if(pnj->direction != 'L')
         {
@@ -226,65 +223,111 @@ int moveTo(int board[fil][col], personaje *pnj, int newfil, int newcol)
 
     if(pnj->direction == 'U')
     {
-        pnj->position_col=newcol;
+        pnj->position.col=newcol;
         if(topEdge<0)
-            pnj->position_fil = 0 + pnj->box.upBox;
+            pnj->position.fil = 0 + pnj->box.upBox;
+        else if(
+            //Evaluamos si la casilla de destino es un obstaculo, evaluando los bordes superiors del personaje para generar colision.
+            (board[defineSquare(topEdge , newcol).fil][pnj->boardPlace.col]>1)
+            || (board[defineSquare(topEdge , newcol).fil][defineSquare(topEdge , newcol-pnj->box.leftBox).col]>1) 
+            || (board[defineSquare(topEdge , newcol).fil][defineSquare(topEdge , newcol+pnj->box.rightBox).col]>1) 
+            )
+        {
+            pnj->position.fil = (lado * (defineSquare(topEdge,newcol).fil+1)) + pnj->box.upBox + 1; //Se agrega un +1 al defineSquare porque necesitamos el borde inferior de la casilla de colision
+        }
         else
-            pnj->position_fil = newfil;
+            pnj->position.fil = newfil;
     }
     else if(pnj->direction == 'D')
     {
-        pnj->position_col=newcol;
-        if(bottomEdge >= (lado*fil))
-            pnj->position_fil = (lado*fil) - pnj->box.bottomBox;
+        pnj->position.col=newcol;
+        if(bottomEdge >= (lado*Nfil))
+            pnj->position.fil = (lado*Nfil) - pnj->box.bottomBox;
+        else if(
+            //Evaluamos si la casilla de destino es un obstaculo, evaluando los bordes inferiores del personaje para generar colision.
+            (board[defineSquare(bottomEdge , newcol).fil][pnj->boardPlace.col]>1)
+            || (board[defineSquare(bottomEdge , newcol).fil][defineSquare(bottomEdge , newcol-pnj->box.leftBox).col]>1) 
+            || (board[defineSquare(bottomEdge , newcol).fil][defineSquare(bottomEdge , newcol+pnj->box.rightBox).col]>1) 
+            )
+        {
+            pnj->position.fil = (lado * (defineSquare(bottomEdge,newcol).fil)) - pnj->box.bottomBox - 1;
+        }
         else
-            pnj->position_fil = newfil;
+            pnj->position.fil = newfil;
     }
     else if(pnj->direction == 'L')
     {
-        pnj->position_fil=newfil;
+        pnj->position.fil=newfil;
         if(leftEdge < 0)
-            pnj->position_col = 0 + pnj->box.leftBox;
+            pnj->position.col = 0 + pnj->box.leftBox;
+        else if(
+            //Evaluamos si la casilla de destino es un obstaculo, evaluando los bordes izquierdos del personaje para generar colision.
+            (board[pnj->boardPlace.fil][defineSquare(newfil , leftEdge).col]>1)
+            || (board[defineSquare(newfil-pnj->box.upBox , leftEdge).fil][defineSquare(newfil , leftEdge).col]>1) 
+            || (board[defineSquare(newfil+pnj->box.bottomBox , leftEdge).fil][defineSquare(newfil , leftEdge).col]>1) 
+            )
+        {
+            pnj->position.col = (lado * (defineSquare(newfil , leftEdge).col+1)) + pnj->box.leftBox + 1; //Se agrega un +1 al defineSquare porque necesitamos el borde derecho de la casilla de colision
+        }
         else
-            pnj->position_col = newcol;
+            pnj->position.col = newcol;
     }
     else if(pnj->direction == 'R')
     {
-        pnj->position_fil=newfil;
-        if(rightEdge >= (lado*col))
-            pnj->position_col = (lado*col) - pnj->box.rightBox;
+        pnj->position.fil=newfil;
+        if(rightEdge >= (lado*Ncol))
+            pnj->position.col = (lado*Ncol) - pnj->box.rightBox;
+        else if(
+            //Evaluamos si la casilla de destino es un obstaculo, evaluando los bordes derechos del personaje para generar colision.
+            (board[pnj->boardPlace.fil][defineSquare(newfil , rightEdge).col]>1)
+            || (board[defineSquare(newfil-pnj->box.upBox , rightEdge).fil][defineSquare(newfil , rightEdge).col]>1) 
+            || (board[defineSquare(newfil+pnj->box.bottomBox , rightEdge).fil][defineSquare(newfil , rightEdge).col]>1) 
+            )
+        {
+            pnj->position.col = (lado * (defineSquare(newfil , rightEdge).col)) - pnj->box.rightBox - 1;
+        }
         else
-            pnj->position_col = newcol;
+            pnj->position.col = newcol;
     }
 
 
     // Alterando la posición del jugador en la matriz
-    if((pnj->position_col / lado)!=pnj->boardcol)
+    if((pnj->position.col / lado)!=pnj->boardPlace.col)
     {
-        board[pnj->boardfil][pnj->boardcol] = 0;
-        board[pnj->position_fil / lado][pnj->position_col / lado] = 1;
-        pnj->boardfil = pnj->position_fil / lado;
-        pnj->boardcol = pnj->position_col / lado;
+        board[pnj->boardPlace.fil][pnj->boardPlace.col] = 0;
+        board[pnj->position.fil / lado][pnj->position.col / lado] = 1;
+        pnj->boardPlace.fil = pnj->position.fil / lado;
+        pnj->boardPlace.col = pnj->position.col / lado;
     }
-    if((pnj->position_fil / lado)!=pnj->boardfil)
+    if((pnj->position.fil / lado)!=pnj->boardPlace.fil)
     {
-        board[pnj->boardfil][pnj->boardcol] = 0;
-        board[pnj->position_fil / lado][pnj->position_col / lado] = 1;
-        pnj->boardfil = pnj->position_fil / lado;
-        pnj->boardcol = pnj->position_col / lado;
+        board[pnj->boardPlace.fil][pnj->boardPlace.col] = 0;
+        board[pnj->position.fil / lado][pnj->position.col / lado] = 1;
+        pnj->boardPlace.fil = pnj->position.fil / lado;
+        pnj->boardPlace.col = pnj->position.col / lado;
     }
 
     return 0;
 }
 
-void power(int board[fil][col], personaje pnj)
+square defineSquare(int filPixel, int colPixel)
+{
+    square position;
+
+    position.fil = filPixel / lado;
+    position.col = colPixel / lado;
+
+    return position;
+}   
+
+void power(int board[Nfil][Ncol], personaje pnj)
 {
     int i,j;
 
     if(pnj.direction == 'D')
     {
-        j=pnj.boardcol;
-        for(i=pnj.boardfil+1; i<fil; i++)
+        j=pnj.boardPlace.col;
+        for(i=pnj.boardPlace.fil+1; i<Nfil; i++)
             if(board[i][j]== 0)
                 board[i][j] = 2;
             else
@@ -292,8 +335,8 @@ void power(int board[fil][col], personaje pnj)
     }
     else if(pnj.direction == 'U')
     {
-        j=pnj.boardcol;
-        for(i=pnj.boardfil-1; i>=0; i--)
+        j=pnj.boardPlace.col;
+        for(i=pnj.boardPlace.fil-1; i>=0; i--)
             if(board[i][j]== 0)
                 board[i][j] = 2;
             else
@@ -301,8 +344,8 @@ void power(int board[fil][col], personaje pnj)
     }
     else if(pnj.direction == 'R')
     {
-        i=pnj.boardfil;
-        for(j=pnj.boardcol+1; j<col; j++)
+        i=pnj.boardPlace.fil;
+        for(j=pnj.boardPlace.col+1; j<Ncol; j++)
             if(board[i][j]== 0)
                 board[i][j] = 2;
             else
@@ -310,8 +353,8 @@ void power(int board[fil][col], personaje pnj)
     }
     else if(pnj.direction == 'L')
     {
-        i=pnj.boardfil;
-        for(j=pnj.boardcol-1; j>=0; j--)
+        i=pnj.boardPlace.fil;
+        for(j=pnj.boardPlace.col-1; j>=0; j--)
             if(board[i][j]== 0)
                 board[i][j] = 2;
             else
@@ -326,22 +369,22 @@ void draw_boardRectangle(int fila, int columna, ALLEGRO_COLOR color){
     al_draw_filled_rectangle((columna * lado)+1, (fila * lado)+1, ((columna + 1) * lado)-1, ((fila + 1) * lado)-1, color);
 }
 
-void draw_pbj(personaje pbj, ALLEGRO_COLOR color, ALLEGRO_FONT *font){
-    al_draw_filled_rectangle(pbj.position_col-pbj.box.leftBox, pbj.position_fil-pbj.box.upBox, pbj.position_col+pbj.box.rightBox, pbj.position_fil+pbj.box.bottomBox, color);
+void draw_pnj(personaje pbj, ALLEGRO_COLOR color, ALLEGRO_FONT *font){
+    al_draw_filled_rectangle(pbj.position.col-pbj.box.leftBox, pbj.position.fil-pbj.box.upBox, pbj.position.col+pbj.box.rightBox, pbj.position.fil+pbj.box.bottomBox, color);
 
     switch (pbj.direction)
     {
     case 'U':
-        al_draw_text(font,al_map_rgb(255,255,255),pbj.position_col, pbj.position_fil-15, ALLEGRO_ALIGN_CENTRE, "U");
+        al_draw_text(font,al_map_rgb(255,255,255),pbj.position.col, pbj.position.fil-15, ALLEGRO_ALIGN_CENTRE, "U");
         break;
     case 'D':
-        al_draw_text(font,al_map_rgb(255,255,255),pbj.position_col, pbj.position_fil-15, ALLEGRO_ALIGN_CENTRE, "D");
+        al_draw_text(font,al_map_rgb(255,255,255),pbj.position.col, pbj.position.fil-15, ALLEGRO_ALIGN_CENTRE, "D");
         break;
     case 'L':
-        al_draw_text(font,al_map_rgb(255,255,255),pbj.position_col, pbj.position_fil-15, ALLEGRO_ALIGN_CENTRE, "L");
+        al_draw_text(font,al_map_rgb(255,255,255),pbj.position.col, pbj.position.fil-15, ALLEGRO_ALIGN_CENTRE, "L");
         break;
     case 'R':
-        al_draw_text(font,al_map_rgb(255,255,255),pbj.position_col, pbj.position_fil-15, ALLEGRO_ALIGN_CENTRE, "R");
+        al_draw_text(font,al_map_rgb(255,255,255),pbj.position.col, pbj.position.fil-15, ALLEGRO_ALIGN_CENTRE, "R");
         break;
     }
 
@@ -360,16 +403,16 @@ void draw_board(ALLEGRO_BITMAP *bitmap, ALLEGRO_FONT *font, ALLEGRO_COLOR backCo
     al_clear_to_color(backColor);
 
     /* Dibujo de cuadrícula */
-    for (i = 0; i <= col; i++)
-        al_draw_line(i * lado, 0, i * lado, fil * lado, lineColor, 2);
+    for (i = 0; i <= Ncol; i++)
+        al_draw_line(i * lado, 0, i * lado, Nfil * lado, lineColor, 2);
 
-    for (j = 0; j <= fil; j++)
-        al_draw_line(0, j * lado, col * lado, j * lado, lineColor, 2);
+    for (j = 0; j <= Nfil; j++)
+        al_draw_line(0, j * lado, Ncol * lado, j * lado, lineColor, 2);
 
     /* Dibujo de texto */
     num = 1;
-    for (i = 0; i < fil; i++) {
-        for (j = 0; j < col; j++) {
+    for (i = 0; i < Nfil; i++) {
+        for (j = 0; j < Ncol; j++) {
             sprintf(str, "%d", num); // Genera el número en formato cadena de texto
             x = (j * lado) + (lado / 2);
             y = (i * lado) + (lado / 2) - (font_size / 2);
