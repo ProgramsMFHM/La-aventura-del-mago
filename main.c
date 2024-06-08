@@ -1,8 +1,8 @@
 #include <allegro5/allegro.h> //Biblioteca Allegro
     #include <allegro5/allegro_primitives.h>
     #include <allegro5/allegro_image.h>
-    #include <allegro5/allegro_font.h> 
-    #include <allegro5/allegro_ttf.h> 
+    #include <allegro5/allegro_font.h>
+    #include <allegro5/allegro_ttf.h>
 #include <stdio.h>
 
 #define lado 101
@@ -69,8 +69,8 @@ int main()
     //Inicializando al jugador 1
     player1.position.fil=51;
     player1.position.col=51;
-    player1.boardPlace.fil=1;
-    player1.boardPlace.col=1;
+    player1.boardPlace.fil=0;
+    player1.boardPlace.col=0;
     player1.direction='D';
     player1.box.leftBox=50;
     player1.box.rightBox=50;
@@ -124,7 +124,7 @@ int main()
         {
             switch (ev.keyboard.keycode) {
                 case ALLEGRO_KEY_UP:
-                    moveTo(board, &player1, player1.position.fil-(5*player1.velocity), player1.position.col);                    
+                    moveTo(board, &player1, player1.position.fil-(5*player1.velocity), player1.position.col);
                     break;
                 case ALLEGRO_KEY_DOWN:
                     moveTo(board, &player1, player1.position.fil+(5*player1.velocity), player1.position.col);
@@ -166,7 +166,7 @@ int main()
 
         //Dibujando al jugador
         draw_pnj(player1, color_purple1, roboto);
-        
+
         /* Actualizar pantalla */
         al_flip_display();
     }
@@ -178,12 +178,13 @@ int main()
 
     return 0;
 }
+
 // funciones lógicas
 int moveTo(int board[Nfil][Ncol], personaje *pnj, int newfil, int newcol)
 {
     //Definiendo direccion de personaje
     if((pnj->position.fil) < newfil) //Mirando abajo
-    {   
+    {
         if(pnj->direction != 'D')
         {
             pnj->direction='D';
@@ -233,7 +234,7 @@ int moveTo(int board[Nfil][Ncol], personaje *pnj, int newfil, int newcol)
             || (board[defineSquare(topEdge , newcol).fil][defineSquare(topEdge , newcol+pnj->box.rightBox).col]>1) 
             )
         {
-            pnj->position.fil = (lado * (defineSquare(topEdge,newcol).fil+1)) + pnj->box.upBox + 1; //Se agrega un +1 al defineSquare porque necesitamos el borde inferior de la casilla de colision
+            pnj->position.fil = (lado * (defineSquare(topEdge,newcol).fil+1)) + pnj->box.upBox; //Se agrega un +1 al defineSquare porque necesitamos el borde inferior de la casilla de colision
         }
         else
             pnj->position.fil = newfil;
@@ -263,11 +264,11 @@ int moveTo(int board[Nfil][Ncol], personaje *pnj, int newfil, int newcol)
         else if(
             //Evaluamos si la casilla de destino es un obstaculo, evaluando los bordes izquierdos del personaje para generar colision.
             (board[pnj->boardPlace.fil][defineSquare(newfil , leftEdge).col]>1)
-            || (board[defineSquare(newfil-pnj->box.upBox , leftEdge).fil][defineSquare(newfil , leftEdge).col]>1) 
-            || (board[defineSquare(newfil+pnj->box.bottomBox , leftEdge).fil][defineSquare(newfil , leftEdge).col]>1) 
+            || (board[defineSquare(newfil-pnj->box.upBox , leftEdge).fil][defineSquare(newfil , leftEdge).col]>1)
+            || (board[defineSquare(newfil+pnj->box.bottomBox , leftEdge).fil][defineSquare(newfil , leftEdge).col]>1)
             )
         {
-            pnj->position.col = (lado * (defineSquare(newfil , leftEdge).col+1)) + pnj->box.leftBox + 1; //Se agrega un +1 al defineSquare porque necesitamos el borde derecho de la casilla de colision
+            pnj->position.col = (lado * (defineSquare(newfil , leftEdge).col+1)) + pnj->box.leftBox; //Se agrega un +1 al defineSquare porque necesitamos el borde derecho de la casilla de colision
         }
         else
             pnj->position.col = newcol;
@@ -280,8 +281,8 @@ int moveTo(int board[Nfil][Ncol], personaje *pnj, int newfil, int newcol)
         else if(
             //Evaluamos si la casilla de destino es un obstaculo, evaluando los bordes derechos del personaje para generar colision.
             (board[pnj->boardPlace.fil][defineSquare(newfil , rightEdge).col]>1)
-            || (board[defineSquare(newfil-pnj->box.upBox , rightEdge).fil][defineSquare(newfil , rightEdge).col]>1) 
-            || (board[defineSquare(newfil+pnj->box.bottomBox , rightEdge).fil][defineSquare(newfil , rightEdge).col]>1) 
+            || (board[defineSquare(newfil-pnj->box.upBox , rightEdge).fil][defineSquare(newfil , rightEdge).col]>1)
+            || (board[defineSquare(newfil+pnj->box.bottomBox , rightEdge).fil][defineSquare(newfil , rightEdge).col]>1)
             )
         {
             pnj->position.col = (lado * (defineSquare(newfil , rightEdge).col)) - pnj->box.rightBox - 1;
@@ -322,41 +323,77 @@ square defineSquare(int filPixel, int colPixel)
 
 void power(int board[Nfil][Ncol], personaje pnj)
 {
-    int i,j;
+    int i,j, startPlace=0, replacedColor=2, toReplaceColor=0;
 
     if(pnj.direction == 'D')
     {
         j=pnj.boardPlace.col;
-        for(i=pnj.boardPlace.fil+1; i<Nfil; i++)
-            if(board[i][j]== 0)
-                board[i][j] = 2;
+
+        startPlace = defineSquare(pnj.position.fil + pnj.box.bottomBox , pnj.position.col).fil+1;
+
+        if(board[startPlace][j] == 2)
+        {
+            replacedColor = 0;
+            toReplaceColor = 2;
+        }
+
+        for(i=startPlace; i<Nfil; i++)
+            if(board[i][j] == toReplaceColor)
+                board[i][j] = replacedColor;
             else
                 break;
     }
     else if(pnj.direction == 'U')
     {
         j=pnj.boardPlace.col;
-        for(i=pnj.boardPlace.fil-1; i>=0; i--)
-            if(board[i][j]== 0)
-                board[i][j] = 2;
+
+        startPlace = defineSquare(pnj.position.fil - pnj.box.upBox , pnj.position.col).fil-1;
+
+        if(board[startPlace][j] == 2)
+        {
+            replacedColor = 0;
+            toReplaceColor = 2;
+        }
+
+        for(i=startPlace; i>=0; i--)
+            if(board[i][j] == toReplaceColor)
+                board[i][j] = replacedColor;
             else
                 break;
     }
     else if(pnj.direction == 'R')
     {
         i=pnj.boardPlace.fil;
-        for(j=pnj.boardPlace.col+1; j<Ncol; j++)
-            if(board[i][j]== 0)
-                board[i][j] = 2;
+
+        startPlace = defineSquare(pnj.position.fil , pnj.position.col + pnj.box.rightBox).col+1;
+
+        if(board[i][startPlace] == 2)
+        {
+            replacedColor = 0;
+            toReplaceColor = 2;
+        }
+
+        for(j=startPlace; j<Ncol; j++)
+            if(board[i][j] == toReplaceColor)
+                board[i][j] = replacedColor;
             else
                 break;
     }
     else if(pnj.direction == 'L')
     {
         i=pnj.boardPlace.fil;
-        for(j=pnj.boardPlace.col-1; j>=0; j--)
-            if(board[i][j]== 0)
-                board[i][j] = 2;
+
+        startPlace = defineSquare(pnj.position.fil , pnj.position.col - pnj.box.leftBox).col-1;
+
+        if(board[i][startPlace] == 2)
+        {
+            replacedColor = 0;
+            toReplaceColor = 2;
+        }
+
+        for(j=startPlace; j>=0; j--)
+            if(board[i][j] == toReplaceColor)
+                board[i][j] = replacedColor;
             else
                 break;
     }
