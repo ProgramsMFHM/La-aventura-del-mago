@@ -73,10 +73,10 @@ int main()
     player1.boardPlace.fil=0;
     player1.boardPlace.col=0;
     player1.direction='D';
-    player1.box.leftBox=50;
-    player1.box.rightBox=50;
-    player1.box.upBox=50;
-    player1.box.bottomBox=50;
+    player1.box.leftBox=40;
+    player1.box.rightBox=40;
+    player1.box.upBox=40;
+    player1.box.bottomBox=40;
     player1.velocity=1;
 
     /*Inicialización allegro*/
@@ -250,12 +250,12 @@ int moveTo(int board[Nfil][Ncol], personaje *pnj, int newfil, int newcol)
     {
         pnj->position.col=newcol;
         if(topEdge<0)
-            pnj->position.fil = 0 + pnj->box.upBox;
+            pnj->position.fil = 1 + pnj->box.upBox;
         else if(
             //Evaluamos si la casilla de destino es un obstaculo, evaluando los bordes superiors del personaje para generar colision.
             (board[defineSquare(topEdge , newcol).fil][pnj->boardPlace.col]>1)
-            || (board[defineSquare(topEdge , newcol).fil][defineSquare(topEdge , newcol-pnj->box.leftBox).col]>1) 
-            || (board[defineSquare(topEdge , newcol).fil][defineSquare(topEdge , newcol+pnj->box.rightBox).col]>1) 
+            || (board[defineSquare(topEdge , newcol).fil][defineSquare(topEdge , newcol-pnj->box.leftBox).col]>1)
+            || (board[defineSquare(topEdge , newcol).fil][defineSquare(topEdge , newcol+pnj->box.rightBox).col]>1)
             )
         {
             pnj->position.fil = (lado * (defineSquare(topEdge,newcol).fil+1)) + pnj->box.upBox; //Se agrega un +1 al defineSquare porque necesitamos el borde inferior de la casilla de colision
@@ -267,12 +267,12 @@ int moveTo(int board[Nfil][Ncol], personaje *pnj, int newfil, int newcol)
     {
         pnj->position.col=newcol;
         if(bottomEdge >= (lado*Nfil))
-            pnj->position.fil = (lado*Nfil) - pnj->box.bottomBox;
+            pnj->position.fil = (lado*Nfil) - pnj->box.bottomBox-1;
         else if(
             //Evaluamos si la casilla de destino es un obstaculo, evaluando los bordes inferiores del personaje para generar colision.
             (board[defineSquare(bottomEdge , newcol).fil][pnj->boardPlace.col]>1)
-            || (board[defineSquare(bottomEdge , newcol).fil][defineSquare(bottomEdge , newcol-pnj->box.leftBox).col]>1) 
-            || (board[defineSquare(bottomEdge , newcol).fil][defineSquare(bottomEdge , newcol+pnj->box.rightBox).col]>1) 
+            || (board[defineSquare(bottomEdge , newcol).fil][defineSquare(bottomEdge , newcol-pnj->box.leftBox).col]>1)
+            || (board[defineSquare(bottomEdge , newcol).fil][defineSquare(bottomEdge , newcol+pnj->box.rightBox).col]>1)
             )
         {
             pnj->position.fil = (lado * (defineSquare(bottomEdge,newcol).fil)) - pnj->box.bottomBox - 1;
@@ -284,7 +284,7 @@ int moveTo(int board[Nfil][Ncol], personaje *pnj, int newfil, int newcol)
     {
         pnj->position.fil=newfil;
         if(leftEdge < 0)
-            pnj->position.col = 0 + pnj->box.leftBox;
+            pnj->position.col = 1 + pnj->box.leftBox;
         else if(
             //Evaluamos si la casilla de destino es un obstaculo, evaluando los bordes izquierdos del personaje para generar colision.
             (board[pnj->boardPlace.fil][defineSquare(newfil , leftEdge).col]>1)
@@ -301,7 +301,7 @@ int moveTo(int board[Nfil][Ncol], personaje *pnj, int newfil, int newcol)
     {
         pnj->position.fil=newfil;
         if(rightEdge >= (lado*Ncol))
-            pnj->position.col = (lado*Ncol) - pnj->box.rightBox;
+            pnj->position.col = (lado*Ncol) - pnj->box.rightBox - 1;
         else if(
             //Evaluamos si la casilla de destino es un obstaculo, evaluando los bordes derechos del personaje para generar colision.
             (board[pnj->boardPlace.fil][defineSquare(newfil , rightEdge).col]>1)
