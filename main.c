@@ -9,6 +9,7 @@
 #define Nfil 10
 #define Ncol 15
 #define font_size 30
+#define FPS 30
 
 struct _hitBox{
     int leftBox;
@@ -85,6 +86,7 @@ int main()
     al_init_font_addon(); // Texto
     al_init_ttf_addon();
     al_install_keyboard(); // Teclado
+    bool keys[ALLEGRO_KEY_MAX] = { false }; /* Inicializa todas las teclas como no presionadas. */
 
     /*Fuentes*/
     ALLEGRO_FONT *roboto = al_load_ttf_font("./src/fonts/Roboto/Roboto-Bold.ttf", font_size, 0);
@@ -93,10 +95,14 @@ int main()
     ALLEGRO_DISPLAY *ventana = al_create_display(Ncol*lado, Nfil*lado);
     al_set_target_backbuffer(ventana);
 
+    //Temporizador
+    ALLEGRO_TIMER *timer = al_create_timer(1.0 / FPS);
+
+    //Inicializar cola de eventor
     ALLEGRO_EVENT_QUEUE *event_queue = al_create_event_queue(); /*Creamos cola de eventos*/
     al_register_event_source(event_queue, al_get_display_event_source(ventana)); /*La ventana puede dar eventos*/
     al_register_event_source(event_queue, al_get_keyboard_event_source());/*El teclado puede dar eventos*/
-
+    al_register_event_source(event_queue, al_get_timer_event_source(timer));/*El temporizador puede dar eventos*/
 
     /* Crear bitmap para el fondo del tablero */
     ALLEGRO_BITMAP *board_bitmap = al_create_bitmap(Ncol * lado, Nfil * lado);
@@ -110,6 +116,9 @@ int main()
 
     al_wait_for_event(event_queue, &ev); /*Esperando a que el usuario reaccione*/
 
+    /*Inicia temporizador*/
+    al_start_timer(timer);
+
     while (!done) {
         /*Limpiamos el Backbuffer*/
         al_clear_to_color(al_map_rgb(0, 0, 0));
@@ -120,55 +129,70 @@ int main()
         {
             done = true;
         }
-        else if (ev.type == ALLEGRO_EVENT_KEY_DOWN)
+        else if(ev.type == ALLEGRO_EVENT_KEY_DOWN)
         {
-            switch (ev.keyboard.keycode) {
-                case ALLEGRO_KEY_UP:
-                    moveTo(board, &player1, player1.position.fil-(5*player1.velocity), player1.position.col);
-                    break;
-                case ALLEGRO_KEY_DOWN:
-                    moveTo(board, &player1, player1.position.fil+(5*player1.velocity), player1.position.col);
-                    break;
-                case ALLEGRO_KEY_LEFT:
-                    moveTo(board, &player1, player1.position.fil, player1.position.col-(5*player1.velocity));
-                    break;
-                case ALLEGRO_KEY_RIGHT:
-                    moveTo(board, &player1, player1.position.fil, player1.position.col+(5*player1.velocity));
-                    break;
-                case ALLEGRO_KEY_SPACE:
-                    power(board, player1);
-                    break;
-                case ALLEGRO_KEY_ESCAPE:
-                    done = true;
-                    break;
+            if(ev.keyboard.keycode == ALLEGRO_KEY_ESCAPE)
+            {
+                done = true;
+            }
+            else if(ev.keyboard.keycode == ALLEGRO_KEY_SPACE)
+            {
+                power(board, player1);
+            }
+            else
+            {
+                keys[ev.keyboard.keycode] = true;
             }
         }
-
-        /*Dibujamos el fondo en el backbuffer*/
-        al_draw_bitmap(board_bitmap,0,0,0);
-
-        /* Dibujar el tablero con colores en el backbuffer*/
-        for(i=0; i<Nfil; i++)
+        else if (ev.type == ALLEGRO_EVENT_KEY_UP)
         {
-            for(j=0; j<Ncol; j++)
+            keys[ev.keyboard.keycode] = false;
+        }
+        else if (ev.type == ALLEGRO_EVENT_TIMER)
+        {
+            if (keys[ALLEGRO_KEY_UP])
             {
-                switch (board[i][j])
+                moveTo(board, &player1, player1.position.fil-(5*player1.velocity), player1.position.col);
+            }
+            else if (keys[ALLEGRO_KEY_DOWN])
+            {
+                moveTo(board, &player1, player1.position.fil+(5*player1.velocity), player1.position.col);
+            }
+            else if (keys[ALLEGRO_KEY_LEFT])
+            {
+                moveTo(board, &player1, player1.position.fil, player1.position.col-(5*player1.velocity));
+            }
+            else if (keys[ALLEGRO_KEY_RIGHT])
+            {
+                moveTo(board, &player1, player1.position.fil, player1.position.col+(5*player1.velocity));
+            }
+
+            /*Dibujamos el fondo en el backbuffer*/
+            al_draw_bitmap(board_bitmap,0,0,0);
+
+            /* Dibujar el tablero con colores en el backbuffer*/
+            for(i=0; i<Nfil; i++)
+            {
+                for(j=0; j<Ncol; j++)
                 {
-                    case 1:
-                        draw_boardRectangle(i, j, color_blue);
-                        break;
-                    case 2:
-                        draw_boardRectangle(i, j, color_purple2);
-                        break;
+                    switch (board[i][j])
+                    {
+                        case 1:
+                            draw_boardRectangle(i, j, color_blue);
+                            break;
+                        case 2:
+                            draw_boardRectangle(i, j, color_purple2);
+                            break;
+                    }
                 }
             }
+
+            //Dibujando al jugador
+            draw_pnj(player1, color_purple1, roboto);
+
+            /* Actualizar pantalla */
+            al_flip_display();
         }
-
-        //Dibujando al jugador
-        draw_pnj(player1, color_purple1, roboto);
-
-        /* Actualizar pantalla */
-        al_flip_display();
     }
 
     /* Cerrar recursos */
