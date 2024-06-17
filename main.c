@@ -4,6 +4,7 @@
     #include <allegro5/allegro_font.h>
     #include <allegro5/allegro_ttf.h>
 #include <stdio.h>
+#include <string.h>
 
 #define lado 101
 #define Nfil 10
@@ -49,11 +50,24 @@ int moveTo(int board[Nfil][Ncol], personaje *pnj, int newfil, int newcol);
 square defineSquare(int filPixel, int colPixel);
 hielo power(int board[Nfil][Ncol], personaje pnj);
 void manageIce(int board[Nfil][Ncol], hielo *ice);
+int getBoard(int board[Nfil][Ncol], char numero[3]);
 
 //Funciones gráficas
 void draw_boardRectangle(int fila, int columna, ALLEGRO_COLOR color);
-void draw_pnj(personaje pbj, ALLEGRO_COLOR color, ALLEGRO_FONT *font);
-void draw_board(ALLEGRO_BITMAP *bitmap, ALLEGRO_FONT *font, ALLEGRO_COLOR backColor, ALLEGRO_COLOR lineColor, ALLEGRO_COLOR numberColor);
+void draw_pnj(personaje pbj);
+void draw_background(ALLEGRO_BITMAP *bitmap, ALLEGRO_FONT *font, ALLEGRO_COLOR backColor, ALLEGRO_COLOR lineColor, ALLEGRO_COLOR numberColor);
+void draw_board(int board[Nfil][Ncol]);
+/*Partes*/
+void game(int board[Nfil][Ncol], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
+
+/*Bitmaps*/
+ALLEGRO_BITMAP *board_bitmap;
+
+ALLEGRO_FONT *roboto; /*Fuente*/
+ ALLEGRO_TIMER *timer; /*Timer*/
+
+/*Other variables*/
+bool keys[ALLEGRO_KEY_MAX] = { false }; /* Inicializa todas las teclas como no presionadas. */
 
 int main()
 {
@@ -63,40 +77,25 @@ int main()
     ALLEGRO_COLOR color_black = al_map_rgb(0,0,0);
     ALLEGRO_COLOR color_white = al_map_rgb(255,255,255);
     ALLEGRO_COLOR color_blue = al_map_rgb(100,100,255);
-    ALLEGRO_COLOR color_purple1 = al_map_rgb(87, 35, 100);
-    ALLEGRO_COLOR color_green1 = al_map_rgb(8, 28, 21);
-    ALLEGRO_COLOR color_green2 = al_map_rgb(27, 67, 50);
-    ALLEGRO_COLOR color_green3 = al_map_rgb(12, 106, 79);
-    ALLEGRO_COLOR color_green4 = al_map_rgb(64, 145, 108);
 
     // Banderas
     int done = 0;
 
     int position[2];
     int board[Nfil][Ncol];
-
-    for(i=0; i<Nfil; i++)
-        for(j=0; j<Ncol; j++)
-            board[i][j]=0;
-
-    board[0][0]=1;
+    getBoard(board, "01");
 
     //Inicializando al jugador 1
-    player1.position.fil=51;
-    player1.position.col=51;
-    player1.boardPlace.fil=0;
-    player1.boardPlace.col=0;
+    player1.boardPlace.fil=6;
+    player1.boardPlace.col=11;
+    player1.position.fil=51+(player1.boardPlace.fil*lado);
+    player1.position.col=51+(player1.boardPlace.col*lado);
     player1.direction='D';
     player1.box.leftBox=40;
     player1.box.rightBox=40;
     player1.box.upBox=40;
     player1.box.bottomBox=40;
-    player1.velocity=1;
-
-
-    /*Variables utiles*/
-    hielo ice; //Casillas a cambiar de color por Power
-    ice.possible=1;
+    player1.velocity=2;
 
     /*Inicialización allegro*/
     al_init();
@@ -105,127 +104,35 @@ int main()
     al_init_font_addon(); // Texto
     al_init_ttf_addon();
     al_install_keyboard(); // Teclado
-    bool keys[ALLEGRO_KEY_MAX] = { false }; /* Inicializa todas las teclas como no presionadas. */
 
     /*Fuentes*/
-    ALLEGRO_FONT *roboto = al_load_ttf_font("./src/fonts/Roboto/Roboto-Bold.ttf", font_size, 0);
+    roboto = al_load_ttf_font("./src/fonts/Roboto/Roboto-Bold.ttf", font_size, 0);
 
     // Inicializando ventana
     ALLEGRO_DISPLAY *ventana = al_create_display(Ncol*lado, Nfil*lado);
     al_set_target_backbuffer(ventana);
 
     //Temporizadores
-    ALLEGRO_TIMER *timer = al_create_timer(1.0 / FPS);
+    timer = al_create_timer(1.0 / FPS);
 
     //Inicializar cola de eventor
     ALLEGRO_EVENT_QUEUE *event_queue = al_create_event_queue(); /*Creamos cola de eventos*/
     al_register_event_source(event_queue, al_get_display_event_source(ventana)); /*La ventana puede dar eventos*/
     al_register_event_source(event_queue, al_get_keyboard_event_source());/*El teclado puede dar eventos*/
     al_register_event_source(event_queue, al_get_timer_event_source(timer));/*El temporizador puede dar eventos*/
-
-    /* Crear bitmap para el fondo del tablero */
-    ALLEGRO_BITMAP *board_bitmap = al_create_bitmap(Ncol * lado, Nfil * lado);
-    draw_board(board_bitmap, roboto, color_black, color_blue, color_white);
-
-    al_draw_text(roboto, color_white, (Ncol*lado)/2, (Nfil*lado)/2, ALLEGRO_ALIGN_CENTRE, "Ingrese cualquier tecla para empezar.");
-
-    al_flip_display();
-
     ALLEGRO_EVENT ev; /*Creamos un evento que analizaremos*/
 
+    al_draw_text(roboto, color_white, (Ncol*lado)/2, (Nfil*lado)/2, ALLEGRO_ALIGN_CENTRE, "Ingrese cualquier tecla para empezar.");
+    al_flip_display();
     al_wait_for_event(event_queue, &ev); /*Esperando a que el usuario reaccione*/
 
     /*Inicia temporizador*/
     al_start_timer(timer);
 
-    while (!done) {
-        /*Limpiamos el Backbuffer*/
-        al_clear_to_color(al_map_rgb(0, 0, 0));
-
-        al_wait_for_event(event_queue, &ev); /*Esperando a que ocurra un evento*/
-
-        if (ev.type == ALLEGRO_EVENT_DISPLAY_CLOSE) /*Si es un cierre de la ventana*/
-        {
-            done = true;
-        }
-        else if(ev.type == ALLEGRO_EVENT_KEY_DOWN)
-        {
-            if(ev.keyboard.keycode == ALLEGRO_KEY_ESCAPE)
-            {
-                done = true;
-            }
-            else if(ev.keyboard.keycode == ALLEGRO_KEY_SPACE)
-            {
-                if(ice.possible)
-                    ice = power(board, player1);
-            }
-            else
-            {
-                keys[ev.keyboard.keycode] = true;
-            }
-        }
-        else if (ev.type == ALLEGRO_EVENT_KEY_UP)
-        {
-            keys[ev.keyboard.keycode] = false;
-        }
-        else if (ev.type == ALLEGRO_EVENT_TIMER)
-        {
-            if (keys[ALLEGRO_KEY_UP])
-            {
-                moveTo(board, &player1, player1.position.fil-(5*player1.velocity), player1.position.col);
-            }
-            else if (keys[ALLEGRO_KEY_DOWN])
-            {
-                moveTo(board, &player1, player1.position.fil+(5*player1.velocity), player1.position.col);
-            }
-            else if (keys[ALLEGRO_KEY_LEFT])
-            {
-                moveTo(board, &player1, player1.position.fil, player1.position.col-(5*player1.velocity));
-            }
-            else if (keys[ALLEGRO_KEY_RIGHT])
-            {
-                moveTo(board, &player1, player1.position.fil, player1.position.col+(5*player1.velocity));
-            }
-
-            if((!ice.possible) &&((al_get_timer_count(timer)%2) == 0)) //Este if se ejecuta cada 2 ticks sólo si NO es posible crear hielo, es decir, si hay hielo pendiente por generar
-                manageIce(board,&ice);
-
-            /*Dibujamos el fondo en el backbuffer*/
-            al_draw_bitmap(board_bitmap,0,0,0);
-
-            /* Dibujar el tablero con colores en el backbuffer*/
-            for(i=0; i<Nfil; i++)
-            {
-                for(j=0; j<Ncol; j++)
-                {
-                    switch (board[i][j])
-                    {
-                        case 1:
-                            draw_boardRectangle(i, j, color_blue);
-                            break;
-                        //case 2:
-                            //draw_boardRectangle(i, j, color_green1);
-                            //break;
-                        case 3:
-                            draw_boardRectangle(i, j, color_green2);
-                            break;
-                        case 4:
-                            draw_boardRectangle(i, j, color_green3);
-                            break;
-                        case 5:
-                            draw_boardRectangle(i, j, color_green4);
-                            break;
-                    }
-                }
-            }
-
-            //Dibujando al jugador
-            draw_pnj(player1, color_purple1, roboto);
-
-            /* Actualizar pantalla */
-            al_flip_display();
-        }
-    }
+    /* Crear bitmap para el fondo del tablero */
+    board_bitmap = al_create_bitmap(Ncol * lado, Nfil * lado);
+    draw_background(board_bitmap, roboto, color_black, color_blue, color_white);
+    game(board, event_queue, &ev, timer);
 
     /* Cerrar recursos */
     al_destroy_display(ventana);
@@ -376,7 +283,7 @@ square defineSquare(int filPixel, int colPixel)
     position.col = colPixel / lado;
 
     return position;
-}   
+}
 
 hielo power(int board[Nfil][Ncol], personaje pnj)
 {
@@ -831,41 +738,72 @@ void manageIce(int board[Nfil][Ncol], hielo *ice)
     return;
 }
 
+int getBoard(int board[Nfil][Ncol], char numero[3])
+{
+    int i,j;
+    char filename[12] = "level";
+    strcat(filename, numero);
+    strcat(filename, ".txt");
+
+    printf("%s\n", filename);
+
+    FILE *game;
+
+    if ((game = fopen(filename, "r"))==NULL)
+        {
+            printf("Error al abrir archivo\n");
+            return 1;
+        }
+    else
+        printf("Archivo abierto\n");
+
+    for(i=0; i<Nfil; i++)
+    for(j=0; j<Ncol; j++)
+        fscanf(game,"%d",&board[i][j]);
+
+    fclose(game);
+
+
+    return 0;
+}
+
 // FUnciones gráficas
 void draw_boardRectangle(int fila, int columna, ALLEGRO_COLOR color){
     al_draw_filled_rectangle((columna * lado)+1, (fila * lado)+1, ((columna + 1) * lado)-1, ((fila + 1) * lado)-1, color);
 }
 
-void draw_pnj(personaje pbj, ALLEGRO_COLOR color, ALLEGRO_FONT *font){
-    al_draw_filled_rectangle(pbj.position.col-pbj.box.leftBox, pbj.position.fil-pbj.box.upBox, pbj.position.col+pbj.box.rightBox, pbj.position.fil+pbj.box.bottomBox, color);
+void draw_pnj(personaje pbj){
+    ALLEGRO_COLOR color_purple1 = al_map_rgb(87, 35, 100);
+
+    al_draw_filled_rectangle(pbj.position.col-pbj.box.leftBox, pbj.position.fil-pbj.box.upBox, pbj.position.col+pbj.box.rightBox, pbj.position.fil+pbj.box.bottomBox, color_purple1);
 
     switch (pbj.direction)
     {
     case 'U':
-        al_draw_text(font,al_map_rgb(255,255,255),pbj.position.col, pbj.position.fil-15, ALLEGRO_ALIGN_CENTRE, "U");
+        al_draw_text(roboto,al_map_rgb(255,255,255),pbj.position.col, pbj.position.fil-15, ALLEGRO_ALIGN_CENTRE, "U");
         break;
     case 'D':
-        al_draw_text(font,al_map_rgb(255,255,255),pbj.position.col, pbj.position.fil-15, ALLEGRO_ALIGN_CENTRE, "D");
+        al_draw_text(roboto,al_map_rgb(255,255,255),pbj.position.col, pbj.position.fil-15, ALLEGRO_ALIGN_CENTRE, "D");
         break;
     case 'L':
-        al_draw_text(font,al_map_rgb(255,255,255),pbj.position.col, pbj.position.fil-15, ALLEGRO_ALIGN_CENTRE, "L");
+        al_draw_text(roboto,al_map_rgb(255,255,255),pbj.position.col, pbj.position.fil-15, ALLEGRO_ALIGN_CENTRE, "L");
         break;
     case 'R':
-        al_draw_text(font,al_map_rgb(255,255,255),pbj.position.col, pbj.position.fil-15, ALLEGRO_ALIGN_CENTRE, "R");
+        al_draw_text(roboto,al_map_rgb(255,255,255),pbj.position.col, pbj.position.fil-15, ALLEGRO_ALIGN_CENTRE, "R");
         break;
     }
 
     return;
 }
 
-void draw_board(ALLEGRO_BITMAP *bitmap, ALLEGRO_FONT *font, ALLEGRO_COLOR backColor, ALLEGRO_COLOR lineColor, ALLEGRO_COLOR numberColor)
+void draw_background(ALLEGRO_BITMAP *bitmap, ALLEGRO_FONT *font, ALLEGRO_COLOR backColor, ALLEGRO_COLOR lineColor, ALLEGRO_COLOR numberColor)
 {
     int i,j, num;
     float x,y; //Valores de x, y usados en partes del código
     char str[4];
 
     al_set_target_bitmap(bitmap);
-    
+
     /* Nos aseguramos que el color del fondo sea negro */
     al_clear_to_color(backColor);
 
@@ -891,4 +829,117 @@ void draw_board(ALLEGRO_BITMAP *bitmap, ALLEGRO_FONT *font, ALLEGRO_COLOR backCo
     // Seleccionamos el Display como el Backbuffer, ya no el birmap del fondo
     al_set_target_backbuffer(al_get_current_display());
     return;
+}
+
+void draw_board(int board[Nfil][Ncol]){
+    int i,j;
+
+    ALLEGRO_COLOR color_blue = al_map_rgb(100,100,255);
+    ALLEGRO_COLOR color_green1 = al_map_rgb(8, 28, 21);
+    ALLEGRO_COLOR color_green2 = al_map_rgb(27, 67, 50);
+    ALLEGRO_COLOR color_green3 = al_map_rgb(12, 106, 79);
+    ALLEGRO_COLOR color_green4 = al_map_rgb(64, 145, 108);
+
+
+    for(i=0; i<Nfil; i++)
+    {
+        for(j=0; j<Ncol; j++)
+        {
+            switch (board[i][j])
+            {
+                case 1:
+                    draw_boardRectangle(i, j, color_blue);
+                    break;
+                //case 2:
+                    //draw_boardRectangle(i, j, color_green1);
+                    //break;
+                case 3:
+                    draw_boardRectangle(i, j, color_green2);
+                    break;
+                case 4:
+                    draw_boardRectangle(i, j, color_green3);
+                    break;
+                case 5:
+                    draw_boardRectangle(i, j, color_green4);
+                    break;
+            }
+        }
+    }
+}
+
+/*Partes*/
+void game(int board[Nfil][Ncol], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer)
+{
+    bool done = false;
+
+    /*Variables utiles*/
+    hielo ice; //Casillas a cambiar de color por Power
+    ice.possible=1;
+
+    while (!done)
+    {
+        /*Limpiamos el Backbuffer*/
+        al_clear_to_color(al_map_rgb(0, 0, 0));
+
+        al_wait_for_event(queue, ev); /*Esperando a que ocurra un evento*/
+
+        if (ev->type == ALLEGRO_EVENT_DISPLAY_CLOSE) /*Si es un cierre de la ventana*/
+        {
+            done = true;
+        }
+        else if(ev->type == ALLEGRO_EVENT_KEY_DOWN)
+        {
+            if(ev->keyboard.keycode == ALLEGRO_KEY_ESCAPE)
+            {
+                done = true;
+            }
+            else if(ev->keyboard.keycode == ALLEGRO_KEY_SPACE)
+            {
+                if(ice.possible)
+                    ice = power(board, player1);
+            }
+            else
+            {
+                keys[ev->keyboard.keycode] = true;
+            }
+        }
+        else if (ev->type == ALLEGRO_EVENT_KEY_UP)
+        {
+            keys[ev->keyboard.keycode] = false;
+        }
+        else if (ev->type == ALLEGRO_EVENT_TIMER)
+        {
+            if (keys[ALLEGRO_KEY_UP])
+            {
+                moveTo(board, &player1, player1.position.fil-(5*player1.velocity), player1.position.col);
+            }
+            else if (keys[ALLEGRO_KEY_DOWN])
+            {
+                moveTo(board, &player1, player1.position.fil+(5*player1.velocity), player1.position.col);
+            }
+            else if (keys[ALLEGRO_KEY_LEFT])
+            {
+                moveTo(board, &player1, player1.position.fil, player1.position.col-(5*player1.velocity));
+            }
+            else if (keys[ALLEGRO_KEY_RIGHT])
+            {
+                moveTo(board, &player1, player1.position.fil, player1.position.col+(5*player1.velocity));
+            }
+
+            if((!ice.possible) &&((al_get_timer_count(timer)%2) == 0)) //Este if se ejecuta cada 2 ticks sólo si NO es posible crear hielo, es decir, si hay hielo pendiente por generar
+                manageIce(board,&ice);
+
+            /*Dibujamos el fondo en el backbuffer*/
+            al_draw_bitmap(board_bitmap,0,0,0);
+
+            /* Dibujar el tablero con colores en el backbuffer*/
+            draw_board(board);
+
+            //Dibujando al jugador
+            draw_pnj(player1);
+
+            /* Actualizar pantalla */
+            al_flip_display();
+        }
+    }
 }
