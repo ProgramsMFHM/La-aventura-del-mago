@@ -68,7 +68,7 @@ void draw_pnj(personaje pbj);
 void draw_background(ALLEGRO_BITMAP *bitmap);
 void draw_board(int board[Nfil][Ncol]);
 /*Partes*/
-void main_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
+int main_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
 void game(int board[Nfil][Ncol], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
 
 /*Bitmaps*/
@@ -138,15 +138,15 @@ int main()
     al_register_event_source(event_queue, al_get_timer_event_source(timer));/*El temporizador puede dar eventos*/
     ALLEGRO_EVENT ev; /*Creamos un evento que analizaremos*/
 
-    main_menu(event_queue, &ev, timer);
-
-    /*Inicia temporizador*/
-    al_start_timer(timer);
-
-    /* Crear bitmap para el fondo del tablero */
-    board_bitmap = al_create_bitmap(Ncol * lado, Nfil * lado);
-    draw_background(board_bitmap);
-    game(board, event_queue, &ev, timer);
+    switch (main_menu(event_queue, &ev, timer))
+    {
+        case 0: //jugar
+            game(board, event_queue, &ev, timer);
+            break;
+        case 1: //Score
+            printf("SCORE\n");
+            break;
+    }
 
     /* Cerrar recursos */
     al_destroy_display(ventana);
@@ -876,11 +876,69 @@ void draw_board(int board[Nfil][Ncol]){
 }
 
 /*Partes*/
-void main_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer)
+int main_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer)
 {
-    al_draw_text(roboto, color_white, (Ncol*lado)/2, (Nfil*lado)/2, ALLEGRO_ALIGN_CENTRE, "Ingrese cualquier tecla para empezar.");
+    bool done = false;
+    ALLEGRO_BITMAP *jugar_bmap = al_load_bitmap("src/Menu/900x600/jugar.png");
+    ALLEGRO_BITMAP *score_bmap = al_load_bitmap("src/Menu/900x600/score.png");
+    ALLEGRO_BITMAP *salir_bmap = al_load_bitmap("src/Menu/900x600/salir.png");
+
+    int actualImage = 0; //Jugar, Score, Salir
+    al_draw_bitmap(jugar_bmap,0,0,0);
     al_flip_display();
-    al_wait_for_event(queue, ev); /*Esperando a que el usuario reaccione*/
+
+    while (!done)
+    {
+        al_wait_for_event(queue, ev); /*Esperando a que ocurra un evento*/
+
+        if (ev->type == ALLEGRO_EVENT_DISPLAY_CLOSE) /*Si es un cierre de la ventana*/
+        {
+            done = true;
+        }
+        else if(ev->type == ALLEGRO_EVENT_KEY_DOWN)
+        {
+            if(ev->keyboard.keycode == ALLEGRO_KEY_TAB || ev->keyboard.keycode == ALLEGRO_KEY_DOWN || ev->keyboard.keycode == ALLEGRO_KEY_RIGHT)
+            {
+                actualImage = (actualImage+1)%3;
+                printf("%d\n",actualImage);
+            }
+            else if(ev->keyboard.keycode == ALLEGRO_KEY_UP || ev->keyboard.keycode == ALLEGRO_KEY_LEFT)
+            {
+                actualImage = (actualImage-1)%3;
+                if(actualImage == -1)
+                    actualImage = 2;
+                printf("%d\n",actualImage);
+            }
+            else if(ev->keyboard.keycode == ALLEGRO_KEY_SPACE || ev->keyboard.keycode == ALLEGRO_KEY_ENTER)
+            {
+                return actualImage;
+            }
+            else if(ev->keyboard.keycode == ALLEGRO_KEY_ESCAPE)
+            {
+                return 2;
+            }
+        }
+
+        switch (actualImage)
+        {
+            case 0:
+                al_draw_bitmap(jugar_bmap,0,0,0);
+                break;
+            case 1:
+                al_draw_bitmap(score_bmap,0,0,0);
+                break;
+            case 2:
+                al_draw_bitmap(salir_bmap,0,0,0);
+                break;
+        }
+        al_flip_display();
+    }
+
+
+
+    al_destroy_bitmap(jugar_bmap);
+    al_destroy_bitmap(score_bmap);
+    al_destroy_bitmap(salir_bmap);
 }
 
 void game(int board[Nfil][Ncol], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer)
@@ -890,6 +948,13 @@ void game(int board[Nfil][Ncol], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, 
     /*Variables utiles*/
     hielo ice; //Casillas a cambiar de color por Power
     ice.possible=1;
+
+    /* Crear bitmap para el fondo del tablero */
+    board_bitmap = al_create_bitmap(Ncol * lado, Nfil * lado);
+    draw_background(board_bitmap);
+
+    /*Inicia temporizador*/
+    al_start_timer(timer);
 
     while (!done)
     {
