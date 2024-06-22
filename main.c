@@ -69,9 +69,11 @@ void draw_background(ALLEGRO_BITMAP *bitmap);
 void draw_board(int board[Nfil][Ncol]);
 /*Partes*/
 int main_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
-void game(int board[Nfil][Ncol], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
+int pause_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
+int game(int board[Nfil][Ncol], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
 
 /*Bitmaps*/
+ALLEGRO_DISPLAY *ventana;
 ALLEGRO_BITMAP *board_bitmap;
 
 ALLEGRO_FONT *roboto; /*Fuente*/
@@ -95,17 +97,11 @@ int main()
     color_green4 = al_map_rgb(64, 145, 108);
 
     // Banderas
-    int done = 0;
-
+    bool done = false;
     int position[2];
     int board[Nfil][Ncol];
-    getBoard(board, "01");
 
     //Inicializando al jugador 1
-    player1.boardPlace.fil=6;
-    player1.boardPlace.col=11;
-    player1.position.fil=(lado/2)+(player1.boardPlace.fil*lado);
-    player1.position.col=(lado/2)+(player1.boardPlace.col*lado);
     player1.direction='D';
     player1.box.leftBox=25;
     player1.box.rightBox=25;
@@ -125,7 +121,7 @@ int main()
     roboto = al_load_ttf_font("./src/fonts/Roboto/Roboto-Bold.ttf", font_size, 0);
 
     // Inicializando ventana
-    ALLEGRO_DISPLAY *ventana = al_create_display(Ncol*lado, Nfil*lado);
+    ventana = al_create_display(Ncol*lado, Nfil*lado);
     al_set_target_backbuffer(ventana);
 
     //Temporizadores
@@ -138,14 +134,21 @@ int main()
     al_register_event_source(event_queue, al_get_timer_event_source(timer));/*El temporizador puede dar eventos*/
     ALLEGRO_EVENT ev; /*Creamos un evento que analizaremos*/
 
-    switch (main_menu(event_queue, &ev, timer))
+    while (!done)
     {
-        case 0: //jugar
-            game(board, event_queue, &ev, timer);
-            break;
-        case 1: //Score
-            printf("SCORE\n");
-            break;
+        switch (main_menu(event_queue, &ev, timer))
+        {
+            case 0: //jugar
+                if(game(board, event_queue, &ev, timer) == -1)
+                    done =true;
+                break;
+            case 1: //Score
+                printf("SCORE\n");
+                break;
+            default:
+                done = true;
+                break;
+        }
     }
 
     /* Cerrar recursos */
@@ -878,10 +881,11 @@ void draw_board(int board[Nfil][Ncol]){
 /*Partes*/
 int main_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer)
 {
+    al_stop_timer(timer);
     bool done = false;
-    ALLEGRO_BITMAP *jugar_bmap = al_load_bitmap("src/Menu/900x600/jugar.png");
-    ALLEGRO_BITMAP *score_bmap = al_load_bitmap("src/Menu/900x600/score.png");
-    ALLEGRO_BITMAP *salir_bmap = al_load_bitmap("src/Menu/900x600/salir.png");
+    ALLEGRO_BITMAP *jugar_bmap = al_load_bitmap("src/mainMenu/900x600/jugar.png");
+    ALLEGRO_BITMAP *score_bmap = al_load_bitmap("src/mainMenu/900x600/score.png");
+    ALLEGRO_BITMAP *salir_bmap = al_load_bitmap("src/mainMenu/900x600/salir.png");
 
     int actualImage = 0; //Jugar, Score, Salir
     al_draw_bitmap(jugar_bmap,0,0,0);
@@ -893,21 +897,19 @@ int main_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *time
 
         if (ev->type == ALLEGRO_EVENT_DISPLAY_CLOSE) /*Si es un cierre de la ventana*/
         {
-            done = true;
+            return 2;
         }
         else if(ev->type == ALLEGRO_EVENT_KEY_DOWN)
         {
             if(ev->keyboard.keycode == ALLEGRO_KEY_TAB || ev->keyboard.keycode == ALLEGRO_KEY_DOWN || ev->keyboard.keycode == ALLEGRO_KEY_RIGHT)
             {
                 actualImage = (actualImage+1)%3;
-                printf("%d\n",actualImage);
             }
             else if(ev->keyboard.keycode == ALLEGRO_KEY_UP || ev->keyboard.keycode == ALLEGRO_KEY_LEFT)
             {
                 actualImage = (actualImage-1)%3;
                 if(actualImage == -1)
                     actualImage = 2;
-                printf("%d\n",actualImage);
             }
             else if(ev->keyboard.keycode == ALLEGRO_KEY_SPACE || ev->keyboard.keycode == ALLEGRO_KEY_ENTER)
             {
@@ -941,9 +943,97 @@ int main_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *time
     al_destroy_bitmap(salir_bmap);
 }
 
-void game(int board[Nfil][Ncol], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer)
+int pause_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer)
+{
+    al_stop_timer(timer);
+    bool done = false;
+    int actualImage = 0; //Continuar, Salir
+    ALLEGRO_BITMAP *continuar_bmp = al_load_bitmap("src/pauseMenu/900x600/continuar.png");
+    ALLEGRO_BITMAP *salir_bmap = al_load_bitmap("src/pauseMenu/900x600/salir.png");
+
+    // Capturar la pantalla actual
+    ALLEGRO_BITMAP *screenshot = al_create_bitmap(Ncol*lado, Nfil*lado);
+    al_set_target_bitmap(screenshot);
+    al_draw_bitmap(al_get_backbuffer(ventana), 0, 0, 0);
+    al_set_target_backbuffer(al_get_current_display());
+
+    //Dibujo inicial
+    al_draw_bitmap(screenshot,0,0,0);
+    al_draw_filled_rectangle(0,0,al_get_display_width(ventana), al_get_display_height(ventana), al_map_rgba(0,0,0,200));
+    al_draw_bitmap(continuar_bmp,0,0,0);
+    al_flip_display();
+
+    while (!done)
+    {
+        al_wait_for_event(queue, ev); /*Esperando a que ocurra un evento*/
+
+        if (ev->type == ALLEGRO_EVENT_DISPLAY_CLOSE) /*Si es un cierre de la ventana*/
+        {
+            return -1;
+        }
+        else if(ev->type == ALLEGRO_EVENT_KEY_DOWN)
+        {
+            if(ev->keyboard.keycode == ALLEGRO_KEY_TAB || ev->keyboard.keycode == ALLEGRO_KEY_DOWN || ev->keyboard.keycode == ALLEGRO_KEY_RIGHT)
+            {
+                actualImage = (actualImage+1)%2;
+            }
+            else if(ev->keyboard.keycode == ALLEGRO_KEY_UP || ev->keyboard.keycode == ALLEGRO_KEY_LEFT)
+            {
+                actualImage = (actualImage-1)%2;
+                if(actualImage == -1)
+                    actualImage = 1;
+            }
+            else if(ev->keyboard.keycode == ALLEGRO_KEY_SPACE || ev->keyboard.keycode == ALLEGRO_KEY_ENTER)
+            {
+                al_resume_timer(timer);
+                return actualImage;
+            }
+            else if(ev->keyboard.keycode == ALLEGRO_KEY_ESCAPE)
+            {
+                al_resume_timer(timer);
+                return 0;
+            }
+        }
+
+        switch (actualImage)
+        {
+            case 0:
+                al_draw_bitmap(screenshot,0,0,0);
+                al_draw_filled_rectangle(0,0,al_get_display_width(ventana), al_get_display_height(ventana), al_map_rgba(0,0,0,200));
+                al_draw_bitmap(continuar_bmp,0,0,0);
+                break;
+            case 1:
+                al_draw_bitmap(screenshot,0,0,0);
+                al_draw_filled_rectangle(0,0,al_get_display_width(ventana), al_get_display_height(ventana), al_map_rgba(0,0,0,200));
+                al_draw_bitmap(salir_bmap,0,0,0);
+                break;
+        }
+        al_flip_display();
+    }
+
+
+
+    al_destroy_bitmap(continuar_bmp);
+    al_destroy_bitmap(salir_bmap);
+}
+
+int game(int board[Nfil][Ncol], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer)
 {
     bool done = false;
+    int i, j;
+    getBoard(board, "01");
+    for(i=0; i<Nfil; i++)
+    for(j=0; j<Ncol; j++)
+    {
+        if(board[i][j]==1)
+            {
+                player1.boardPlace.fil=i;
+                player1.boardPlace.col=j;
+            }
+    }
+    // Ubicando jugador
+    player1.position.fil=(lado/2)+(player1.boardPlace.fil*lado);
+    player1.position.col=(lado/2)+(player1.boardPlace.col*lado);
 
     /*Variables utiles*/
     hielo ice; //Casillas a cambiar de color por Power
@@ -958,20 +1048,27 @@ void game(int board[Nfil][Ncol], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, 
 
     while (!done)
     {
-        /*Limpiamos el Backbuffer*/
-        al_clear_to_color(color_black);
-
         al_wait_for_event(queue, ev); /*Esperando a que ocurra un evento*/
 
         if (ev->type == ALLEGRO_EVENT_DISPLAY_CLOSE) /*Si es un cierre de la ventana*/
         {
-            done = true;
+            return -1;
         }
         else if(ev->type == ALLEGRO_EVENT_KEY_DOWN)
         {
             if(ev->keyboard.keycode == ALLEGRO_KEY_ESCAPE)
             {
-                done = true;
+                for(i=0; i<ALLEGRO_KEY_MAX; i++) //Se "levantan" todas las teclas
+                    keys[i] = false;
+                switch (pause_menu(queue, ev, timer))
+                {
+                    case -1:
+                        return -1;
+                        break;
+                    case 1:
+                        return 1;
+                        break;
+                }
             }
             else if(ev->keyboard.keycode == ALLEGRO_KEY_SPACE)
             {
@@ -989,6 +1086,9 @@ void game(int board[Nfil][Ncol], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, 
         }
         else if (ev->type == ALLEGRO_EVENT_TIMER)
         {
+            /*Limpiamos el Backbuffer*/
+            al_clear_to_color(color_blue);
+
             if (keys[ALLEGRO_KEY_UP])
             {
                 moveTo(board, &player1, player1.position.fil-(5*player1.velocity), player1.position.col);
@@ -1022,4 +1122,5 @@ void game(int board[Nfil][Ncol], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, 
             al_flip_display();
         }
     }
+    return 0;
 }
