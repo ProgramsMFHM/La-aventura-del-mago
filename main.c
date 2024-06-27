@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#define lado 60
+#define lado 64
 #define Nfil 10
 #define Ncol 15
 #define font_size 20
@@ -42,6 +42,8 @@ struct _personaje {
     char direction; // U, D, L, R
     hitBox box;
     int velocity;
+    bool movement;
+    int spriteFil;
 } player1;
 typedef struct _personaje personaje;
 
@@ -64,7 +66,7 @@ int getBoard(int board[Nfil][Ncol], char numero[3]);
 
 //Funciones gráficas
 void draw_boardRectangle(int fila, int columna, ALLEGRO_COLOR color);
-void draw_pnj(personaje pbj);
+void draw_pnj(personaje *pnj, ALLEGRO_BITMAP *image);
 void draw_background(ALLEGRO_BITMAP *bitmap);
 void draw_board(int board[Nfil][Ncol]);
 /*Partes*/
@@ -75,6 +77,7 @@ int game(int board[Nfil][Ncol], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, A
 /*Bitmaps*/
 ALLEGRO_DISPLAY *ventana;
 ALLEGRO_BITMAP *board_bitmap;
+ALLEGRO_BITMAP *player_bitmap;
 
 ALLEGRO_FONT *roboto; /*Fuente*/
 ALLEGRO_TIMER *timer; /*Timer*/
@@ -156,7 +159,8 @@ int main()
     al_destroy_event_queue(event_queue);
     al_destroy_font(roboto);
     al_destroy_timer(timer);
-
+    al_destroy_bitmap(player_bitmap);
+    al_destroy_bitmap(board_bitmap);
     return 0;
 }
 
@@ -789,28 +793,40 @@ int getBoard(int board[Nfil][Ncol], char numero[3])
 
 // FUnciones gráficas
 void draw_boardRectangle(int fila, int columna, ALLEGRO_COLOR color){
-    al_draw_filled_rectangle((columna * lado)+1, (fila * lado)+1, ((columna + 1) * lado)-1, ((fila + 1) * lado)-1, color);
+    al_draw_filled_rectangle((columna * lado), (fila * lado), ((columna + 1) * lado), ((fila + 1) * lado), color);
 }
 
-void draw_pnj(personaje pbj){
-    al_draw_filled_rectangle(pbj.position.col-pbj.box.leftBox, pbj.position.fil-pbj.box.upBox, pbj.position.col+pbj.box.rightBox, pbj.position.fil+pbj.box.bottomBox, color_purple1);
+void draw_pnj(personaje *pnj, ALLEGRO_BITMAP *image){
+    int spriteWidht = al_get_bitmap_width(image)/4;
+    int spriteHeight = al_get_bitmap_height(image)/4;
+    int spritecol;
 
-    switch (pbj.direction)
+    switch (pnj->direction)
     {
-    case 'U':
-        al_draw_text(roboto,color_white,pbj.position.col, pbj.position.fil-15, ALLEGRO_ALIGN_CENTRE, "U");
-        break;
     case 'D':
-        al_draw_text(roboto,color_white,pbj.position.col, pbj.position.fil-15, ALLEGRO_ALIGN_CENTRE, "D");
+        spritecol = 0;
         break;
     case 'L':
-        al_draw_text(roboto,color_white,pbj.position.col, pbj.position.fil-15, ALLEGRO_ALIGN_CENTRE, "L");
+        spritecol = 1;
         break;
     case 'R':
-        al_draw_text(roboto,color_white,pbj.position.col, pbj.position.fil-15, ALLEGRO_ALIGN_CENTRE, "R");
+        spritecol = 2;
+        break;
+    case 'U':
+        spritecol = 3;
         break;
     }
+    if(al_get_timer_count(timer)%5 == 0)
+    {
+        if(pnj->movement)
+            pnj->spriteFil = (pnj->spriteFil + 1)%4;
+        else
+            pnj->spriteFil = 0;
+    }
 
+    //al_draw_filled_rectangle(pnj->position.col-pnj->box.leftBox, pnj->position.fil-pnj->box.upBox, pnj->position.col+pnj->box.rightBox, pnj->position.fil+pnj->box.bottomBox, color_purple1);
+
+    al_draw_bitmap_region(image, (spriteWidht*pnj->spriteFil),(spriteHeight*spritecol),spriteWidht,spriteHeight, pnj->position.col-(spriteWidht/2), pnj->position.fil-(spriteHeight/2), 0);
     return;
 }
 
@@ -819,51 +835,47 @@ void draw_background(ALLEGRO_BITMAP *bitmap)
     int i,j, num;
     float x,y; //Valores de x, y usados en partes del código
     char str[4];
+    ALLEGRO_BITMAP *grass = al_load_bitmap("./src/sprites/board/grass.jpg");
 
     al_set_target_bitmap(bitmap);
 
     /* Nos aseguramos que el color del fondo sea negro */
     al_clear_to_color(color_black);
-
-    /* Dibujo de cuadrícula */
-    for (i = 0; i <= Ncol; i++)
-        al_draw_line(i * lado, 0, i * lado, Nfil * lado, color_blue, 2);
-
-    for (j = 0; j <= Nfil; j++)
-        al_draw_line(0, j * lado, Ncol * lado, j * lado, color_blue, 2);
-
-    /* Dibujo de texto */
     num = 1;
     for (i = 0; i < Nfil; i++) {
         for (j = 0; j < Ncol; j++) {
-            sprintf(str, "%d", num); // Genera el número en formato cadena de texto
-            x = (j * lado) + (lado / 2);
-            y = (i * lado) + (lado / 2) - (font_size / 2);
-            al_draw_text(roboto, color_white, x, y, ALLEGRO_ALIGN_CENTRE, str);
-            num++;
+            al_draw_bitmap(grass, j*lado, i*lado, 0);
         }
     }
 
     // Seleccionamos el Display como el Backbuffer, ya no el birmap del fondo
     al_set_target_backbuffer(al_get_current_display());
+    al_destroy_bitmap(grass);
     return;
 }
 
 void draw_board(int board[Nfil][Ncol]){
     int i,j;
+    ALLEGRO_BITMAP *rockBitmap = al_load_bitmap("./src/sprites/board/rock.png");
+    int rockwidht = 64, rockheight = 64;
 
     for(i=0; i<Nfil; i++)
     {
         for(j=0; j<Ncol; j++)
         {
-            switch (board[i][j])
+            if(board[i][j]>=2 && board[i][j]<=5)
+            {
+                //printf("%d,%d,%d,%d,%d,%d,%d\n\n\n", board[i][j], (board[i][j]-2)*rockwidht, 0, rockwidht, rockheight, i*lado, j*lado);
+                al_draw_bitmap_region(rockBitmap, (board[i][j]-2)*rockwidht, 0, rockwidht, rockheight, j*lado, i*lado, 0 );
+            }
+            /*switch (board[i][j])
             {
                 case 1:
                     draw_boardRectangle(i, j, color_blue);
                     break;
-                //case 2:
-                    //draw_boardRectangle(i, j, color_green1);
-                    //break;
+                case 2:
+                    draw_boardRectangle(i, j, color_green1);
+                    break;
                 case 3:
                     draw_boardRectangle(i, j, color_green2);
                     break;
@@ -873,7 +885,7 @@ void draw_board(int board[Nfil][Ncol]){
                 case 5:
                     draw_boardRectangle(i, j, color_green4);
                     break;
-            }
+            }*/
         }
     }
 }
@@ -883,9 +895,9 @@ int main_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *time
 {
     al_stop_timer(timer);
     bool done = false;
-    ALLEGRO_BITMAP *jugar_bmap = al_load_bitmap("src/mainMenu/900x600/jugar.png");
-    ALLEGRO_BITMAP *score_bmap = al_load_bitmap("src/mainMenu/900x600/score.png");
-    ALLEGRO_BITMAP *salir_bmap = al_load_bitmap("src/mainMenu/900x600/salir.png");
+    ALLEGRO_BITMAP *jugar_bmap = al_load_bitmap("src/mainMenu/960x640/jugar.png");
+    ALLEGRO_BITMAP *score_bmap = al_load_bitmap("src/mainMenu/960x640/score.png");
+    ALLEGRO_BITMAP *salir_bmap = al_load_bitmap("src/mainMenu/960x640/salir.png");
 
     int actualImage = 0; //Jugar, Score, Salir
     al_draw_bitmap(jugar_bmap,0,0,0);
@@ -948,8 +960,8 @@ int pause_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *tim
     al_stop_timer(timer);
     bool done = false;
     int actualImage = 0; //Continuar, Salir
-    ALLEGRO_BITMAP *continuar_bmp = al_load_bitmap("src/pauseMenu/900x600/continuar.png");
-    ALLEGRO_BITMAP *salir_bmap = al_load_bitmap("src/pauseMenu/900x600/salir.png");
+    ALLEGRO_BITMAP *continuar_bmp = al_load_bitmap("src/pauseMenu/960x640/continuar.png");
+    ALLEGRO_BITMAP *salir_bmap = al_load_bitmap("src/pauseMenu/960x640/salir.png");
 
     // Capturar la pantalla actual
     ALLEGRO_BITMAP *screenshot = al_create_bitmap(Ncol*lado, Nfil*lado);
@@ -1039,6 +1051,9 @@ int game(int board[Nfil][Ncol], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, A
     hielo ice; //Casillas a cambiar de color por Power
     ice.possible=1;
 
+    /*Bitmap personaje*/
+    player_bitmap = al_load_bitmap("./src/sprites/pnj/spritesheet.png");
+
     /* Crear bitmap para el fondo del tablero */
     board_bitmap = al_create_bitmap(Ncol * lado, Nfil * lado);
     draw_background(board_bitmap);
@@ -1078,11 +1093,14 @@ int game(int board[Nfil][Ncol], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, A
             else
             {
                 keys[ev->keyboard.keycode] = true;
+                player1.movement = true;
             }
         }
         else if (ev->type == ALLEGRO_EVENT_KEY_UP)
         {
             keys[ev->keyboard.keycode] = false;
+            if(!(keys[ALLEGRO_KEY_UP] || keys[ALLEGRO_KEY_DOWN] || keys[ALLEGRO_KEY_LEFT]|| keys[ALLEGRO_KEY_RIGHT]))
+                player1.movement = false;
         }
         else if (ev->type == ALLEGRO_EVENT_TIMER)
         {
@@ -1116,7 +1134,7 @@ int game(int board[Nfil][Ncol], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, A
             draw_board(board);
 
             //Dibujando al jugador
-            draw_pnj(player1);
+            draw_pnj(&player1, player_bitmap);
 
             /* Actualizar pantalla */
             al_flip_display();
