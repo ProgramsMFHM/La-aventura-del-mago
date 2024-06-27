@@ -78,6 +78,7 @@ int game(int board[Nfil][Ncol], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, A
 ALLEGRO_DISPLAY *ventana;
 ALLEGRO_BITMAP *board_bitmap;
 ALLEGRO_BITMAP *player_bitmap;
+ALLEGRO_BITMAP *rockBitmap;
 
 ALLEGRO_FONT *roboto; /*Fuente*/
 ALLEGRO_TIMER *timer; /*Timer*/
@@ -161,6 +162,7 @@ int main()
     al_destroy_timer(timer);
     al_destroy_bitmap(player_bitmap);
     al_destroy_bitmap(board_bitmap);
+    al_destroy_bitmap(rockBitmap);
     return 0;
 }
 
@@ -856,36 +858,18 @@ void draw_background(ALLEGRO_BITMAP *bitmap)
 
 void draw_board(int board[Nfil][Ncol]){
     int i,j;
-    ALLEGRO_BITMAP *rockBitmap = al_load_bitmap("./src/sprites/board/rock.png");
+    rockBitmap = al_load_bitmap("./src/sprites/board/rock.png");
     int rockwidht = 64, rockheight = 64;
 
     for(i=0; i<Nfil; i++)
     {
         for(j=0; j<Ncol; j++)
         {
-            if(board[i][j]>=2 && board[i][j]<=5)
+            if(board[i][j]>=3 && board[i][j]<=5)
             {
                 //printf("%d,%d,%d,%d,%d,%d,%d\n\n\n", board[i][j], (board[i][j]-2)*rockwidht, 0, rockwidht, rockheight, i*lado, j*lado);
-                al_draw_bitmap_region(rockBitmap, (board[i][j]-2)*rockwidht, 0, rockwidht, rockheight, j*lado, i*lado, 0 );
+                al_draw_bitmap_region(rockBitmap, (board[i][j]-3)*rockwidht, 0, rockwidht, rockheight, j*lado, i*lado, 0 );
             }
-            /*switch (board[i][j])
-            {
-                case 1:
-                    draw_boardRectangle(i, j, color_blue);
-                    break;
-                case 2:
-                    draw_boardRectangle(i, j, color_green1);
-                    break;
-                case 3:
-                    draw_boardRectangle(i, j, color_green2);
-                    break;
-                case 4:
-                    draw_boardRectangle(i, j, color_green3);
-                    break;
-                case 5:
-                    draw_boardRectangle(i, j, color_green4);
-                    break;
-            }*/
         }
     }
 }
