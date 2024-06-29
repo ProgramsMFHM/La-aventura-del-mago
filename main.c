@@ -9,8 +9,12 @@
 #include<time.h>
 
 #define lado 64
-#define Nfil 10
-#define Ncol 15
+#define windowNfil 10
+#define windowNcol 15
+#define windowWidth lado*windowNcol
+#define windowheight lado*windowNfil
+#define MAXFILS 30
+#define MAXCOLS 30
 #define font_size 20
 #define FPS 30
 
@@ -23,7 +27,7 @@ struct _hitBox{
 typedef struct _hitBox hitBox;
 
 struct _square{
-    int fil;
+    int row;
     int col;
 };
 typedef struct _square square;
@@ -49,6 +53,17 @@ struct _personaje {
 } player1;
 typedef struct _personaje personaje;
 
+struct _gameInfo
+{
+    int gameRows;
+    int gameCols;
+    square startSquare;
+    square endSquare;
+    int mapColStart;
+    int mapFilStart;
+} Game;
+typedef struct _gameInfo gameInfo;
+
 /*Colores*/
 ALLEGRO_COLOR color_black;
 ALLEGRO_COLOR color_white;
@@ -60,21 +75,21 @@ ALLEGRO_COLOR color_green3;
 ALLEGRO_COLOR color_green4;
 
 //Funciones lógicas
-int moveTo(int board[Nfil][Ncol], personaje *pnj, int newfil, int newcol);
+int moveTo(int board[MAXFILS][MAXCOLS], personaje *pnj, int newfil, int newcol);
 square defineSquare(int filPixel, int colPixel);
-hielo power(int board[Nfil][Ncol], personaje pnj);
-void manageIce(int board[Nfil][Ncol], hielo *ice);
-int getBoard(int board[Nfil][Ncol], char numero[3]);
+hielo power(int board[MAXFILS][MAXCOLS], personaje pnj);
+void manageIce(int board[MAXFILS][MAXCOLS], hielo *ice);
+int getBoard(int board[MAXFILS][MAXCOLS], char numero[3]);
 
 //Funciones gráficas
 void draw_boardRectangle(int fila, int columna, ALLEGRO_COLOR color);
 void draw_pnj(personaje *pnj, ALLEGRO_BITMAP *image);
 void draw_background(ALLEGRO_BITMAP *bitmap);
-void draw_board(int board[Nfil][Ncol]);
+void draw_board(int board[MAXFILS][MAXCOLS]);
 /*Partes*/
 int main_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
 int pause_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
-int game(int board[Nfil][Ncol], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
+int game(int board[MAXFILS][MAXCOLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
 
 /*Bitmaps*/
 ALLEGRO_DISPLAY *ventana;
@@ -105,7 +120,10 @@ int main()
     // Banderas
     bool done = false;
     int position[2];
-    int board[Nfil][Ncol];
+    int board[MAXFILS][MAXCOLS];
+    for(i=0; i<MAXFILS; i++)
+    for(j=0; j<MAXCOLS; j++)
+        board[i][j]=0;
 
     //Inicializando al jugador 1
     player1.direction='D';
@@ -127,7 +145,7 @@ int main()
     roboto = al_load_ttf_font("./src/fonts/Roboto/Roboto-Bold.ttf", font_size, 0);
 
     // Inicializando ventana
-    ventana = al_create_display(Ncol*lado, Nfil*lado);
+    ventana = al_create_display(windowWidth , windowheight);
     al_set_target_backbuffer(ventana);
 
     //Temporizadores
@@ -169,10 +187,10 @@ int main()
 }
 
 // funciones lógicas
-int moveTo(int board[Nfil][Ncol], personaje *pnj, int newfil, int newcol)
+int moveTo(int board[MAXFILS][MAXCOLS], personaje *pnj, int newfil, int newcol)
 {
     //Definiendo direccion de personaje
-    if((pnj->position.fil) < newfil) //Mirando abajo
+    if((pnj->position.row) < newfil) //Mirando abajo
     {
         if(pnj->direction != 'D')
         {
@@ -180,7 +198,7 @@ int moveTo(int board[Nfil][Ncol], personaje *pnj, int newfil, int newcol)
             return 0;
         }
     }
-    else if((pnj->position.fil) > newfil) //Mirando arriba
+    else if((pnj->position.row) > newfil) //Mirando arriba
     {
         if(pnj->direction != 'U')
         {
@@ -215,46 +233,46 @@ int moveTo(int board[Nfil][Ncol], personaje *pnj, int newfil, int newcol)
     {
         pnj->position.col=newcol;
         if(topEdge<0)
-            pnj->position.fil = 1 + pnj->box.upBox;
+            pnj->position.row = 1 + pnj->box.upBox;
         else if(
             //Evaluamos si la casilla de destino es un obstaculo, evaluando los bordes superiors del personaje para generar colision.
-            (board[defineSquare(topEdge , newcol).fil][pnj->boardPlace.col]>1)
-            || (board[defineSquare(topEdge , newcol).fil][defineSquare(topEdge , newcol-pnj->box.leftBox).col]>1)
-            || (board[defineSquare(topEdge , newcol).fil][defineSquare(topEdge , newcol+pnj->box.rightBox).col]>1)
+            (board[defineSquare(topEdge , newcol).row][pnj->boardPlace.col]>1)
+            || (board[defineSquare(topEdge , newcol).row][defineSquare(topEdge , newcol-pnj->box.leftBox).col]>1)
+            || (board[defineSquare(topEdge , newcol).row][defineSquare(topEdge , newcol+pnj->box.rightBox).col]>1)
             )
         {
-            pnj->position.fil = (lado * (defineSquare(topEdge,newcol).fil+1)) + pnj->box.upBox; //Se agrega un +1 al defineSquare porque necesitamos el borde inferior de la casilla de colision
+            pnj->position.row = (lado * (defineSquare(topEdge,newcol).row+1)) + pnj->box.upBox; //Se agrega un +1 al defineSquare porque necesitamos el borde inferior de la casilla de colision
         }
         else
-            pnj->position.fil = newfil;
+            pnj->position.row = newfil;
     }
     else if(pnj->direction == 'D')
     {
         pnj->position.col=newcol;
-        if(bottomEdge >= (lado*Nfil))
-            pnj->position.fil = (lado*Nfil) - pnj->box.bottomBox-1;
+        if(bottomEdge >= (lado*Game.gameRows))
+            pnj->position.row = (lado*Game.gameRows) - pnj->box.bottomBox-1;
         else if(
             //Evaluamos si la casilla de destino es un obstaculo, evaluando los bordes inferiores del personaje para generar colision.
-            (board[defineSquare(bottomEdge , newcol).fil][pnj->boardPlace.col]>1)
-            || (board[defineSquare(bottomEdge , newcol).fil][defineSquare(bottomEdge , newcol-pnj->box.leftBox).col]>1)
-            || (board[defineSquare(bottomEdge , newcol).fil][defineSquare(bottomEdge , newcol+pnj->box.rightBox).col]>1)
+            (board[defineSquare(bottomEdge , newcol).row][pnj->boardPlace.col]>1)
+            || (board[defineSquare(bottomEdge , newcol).row][defineSquare(bottomEdge , newcol-pnj->box.leftBox).col]>1)
+            || (board[defineSquare(bottomEdge , newcol).row][defineSquare(bottomEdge , newcol+pnj->box.rightBox).col]>1)
             )
         {
-            pnj->position.fil = (lado * (defineSquare(bottomEdge,newcol).fil)) - pnj->box.bottomBox - 1;
+            pnj->position.row = (lado * (defineSquare(bottomEdge,newcol).row)) - pnj->box.bottomBox - 1;
         }
         else
-            pnj->position.fil = newfil;
+            pnj->position.row = newfil;
     }
     else if(pnj->direction == 'L')
     {
-        pnj->position.fil=newfil;
+        pnj->position.row=newfil;
         if(leftEdge < 0)
             pnj->position.col = 1 + pnj->box.leftBox;
         else if(
             //Evaluamos si la casilla de destino es un obstaculo, evaluando los bordes izquierdos del personaje para generar colision.
-            (board[pnj->boardPlace.fil][defineSquare(newfil , leftEdge).col]>1)
-            || (board[defineSquare(newfil-pnj->box.upBox , leftEdge).fil][defineSquare(newfil , leftEdge).col]>1)
-            || (board[defineSquare(newfil+pnj->box.bottomBox , leftEdge).fil][defineSquare(newfil , leftEdge).col]>1)
+            (board[pnj->boardPlace.row][defineSquare(newfil , leftEdge).col]>1)
+            || (board[defineSquare(newfil-pnj->box.upBox , leftEdge).row][defineSquare(newfil , leftEdge).col]>1)
+            || (board[defineSquare(newfil+pnj->box.bottomBox , leftEdge).row][defineSquare(newfil , leftEdge).col]>1)
             )
         {
             pnj->position.col = (lado * (defineSquare(newfil , leftEdge).col+1)) + pnj->box.leftBox; //Se agrega un +1 al defineSquare porque necesitamos el borde derecho de la casilla de colision
@@ -264,14 +282,14 @@ int moveTo(int board[Nfil][Ncol], personaje *pnj, int newfil, int newcol)
     }
     else if(pnj->direction == 'R')
     {
-        pnj->position.fil=newfil;
-        if(rightEdge >= (lado*Ncol))
-            pnj->position.col = (lado*Ncol) - pnj->box.rightBox - 1;
+        pnj->position.row=newfil;
+        if(rightEdge >= (lado*Game.gameCols))
+            pnj->position.col = (lado*Game.gameCols) - pnj->box.rightBox - 1;
         else if(
             //Evaluamos si la casilla de destino es un obstaculo, evaluando los bordes derechos del personaje para generar colision.
-            (board[pnj->boardPlace.fil][defineSquare(newfil , rightEdge).col]>1)
-            || (board[defineSquare(newfil-pnj->box.upBox , rightEdge).fil][defineSquare(newfil , rightEdge).col]>1)
-            || (board[defineSquare(newfil+pnj->box.bottomBox , rightEdge).fil][defineSquare(newfil , rightEdge).col]>1)
+            (board[pnj->boardPlace.row][defineSquare(newfil , rightEdge).col]>1)
+            || (board[defineSquare(newfil-pnj->box.upBox , rightEdge).row][defineSquare(newfil , rightEdge).col]>1)
+            || (board[defineSquare(newfil+pnj->box.bottomBox , rightEdge).row][defineSquare(newfil , rightEdge).col]>1)
             )
         {
             pnj->position.col = (lado * (defineSquare(newfil , rightEdge).col)) - pnj->box.rightBox - 1;
@@ -284,16 +302,16 @@ int moveTo(int board[Nfil][Ncol], personaje *pnj, int newfil, int newcol)
     // Alterando la posición del jugador en la matriz
     if((pnj->position.col / lado)!=pnj->boardPlace.col)
     {
-        board[pnj->boardPlace.fil][pnj->boardPlace.col] = 0;
-        board[pnj->position.fil / lado][pnj->position.col / lado] = 1;
-        pnj->boardPlace.fil = pnj->position.fil / lado;
+        board[pnj->boardPlace.row][pnj->boardPlace.col] = 0;
+        board[pnj->position.row / lado][pnj->position.col / lado] = 1;
+        pnj->boardPlace.row = pnj->position.row / lado;
         pnj->boardPlace.col = pnj->position.col / lado;
     }
-    if((pnj->position.fil / lado)!=pnj->boardPlace.fil)
+    if((pnj->position.row / lado)!=pnj->boardPlace.row)
     {
-        board[pnj->boardPlace.fil][pnj->boardPlace.col] = 0;
-        board[pnj->position.fil / lado][pnj->position.col / lado] = 1;
-        pnj->boardPlace.fil = pnj->position.fil / lado;
+        board[pnj->boardPlace.row][pnj->boardPlace.col] = 0;
+        board[pnj->position.row / lado][pnj->position.col / lado] = 1;
+        pnj->boardPlace.row = pnj->position.row / lado;
         pnj->boardPlace.col = pnj->position.col / lado;
     }
 
@@ -304,13 +322,13 @@ square defineSquare(int filPixel, int colPixel)
 {
     square position;
 
-    position.fil = filPixel / lado;
+    position.row = filPixel / lado;
     position.col = colPixel / lado;
 
     return position;
 }
 
-hielo power(int board[Nfil][Ncol], personaje pnj)
+hielo power(int board[MAXFILS][MAXCOLS], personaje pnj)
 {
     int i,j, startPlace=0, affectedSqares=0;
     int VOID_SQUARE = 0, START_SQUARE_COLOR = 2, END_SQUARE_COLOR = 5, PAST_COLOR = VOID_SQUARE, NEW_COLOR = START_SQUARE_COLOR;
@@ -322,8 +340,8 @@ hielo power(int board[Nfil][Ncol], personaje pnj)
     {
         j=pnj.boardPlace.col;
 
-        startPlace = defineSquare(pnj.position.fil + pnj.box.bottomBox , pnj.position.col).fil+1;
-        ice.begin.fil = startPlace;
+        startPlace = defineSquare(pnj.position.row + pnj.box.bottomBox , pnj.position.col).row+1;
+        ice.begin.row = startPlace;
         ice.begin.col = j;
 
         if(board[startPlace][j] == END_SQUARE_COLOR)
@@ -333,7 +351,7 @@ hielo power(int board[Nfil][Ncol], personaje pnj)
             ice.create=false;
         }
 
-        for(i=startPlace; i<Nfil; i++)
+        for(i=startPlace; i<Game.gameRows; i++)
             if(board[i][j] == PAST_COLOR)
             {
                 board[i][j] = NEW_COLOR;
@@ -346,8 +364,8 @@ hielo power(int board[Nfil][Ncol], personaje pnj)
     {
         j=pnj.boardPlace.col;
 
-        startPlace = defineSquare(pnj.position.fil - pnj.box.upBox , pnj.position.col).fil-1;
-        ice.begin.fil = startPlace;
+        startPlace = defineSquare(pnj.position.row - pnj.box.upBox , pnj.position.col).row-1;
+        ice.begin.row = startPlace;
         ice.begin.col = j;
 
         if(board[startPlace][j] == 5)
@@ -368,10 +386,10 @@ hielo power(int board[Nfil][Ncol], personaje pnj)
     }
     else if(pnj.direction == 'R')
     {
-        i=pnj.boardPlace.fil;
+        i=pnj.boardPlace.row;
 
-        startPlace = defineSquare(pnj.position.fil , pnj.position.col + pnj.box.rightBox).col+1;
-        ice.begin.fil = i;
+        startPlace = defineSquare(pnj.position.row , pnj.position.col + pnj.box.rightBox).col+1;
+        ice.begin.row = i;
         ice.begin.col = startPlace;
 
         if(board[i][startPlace] == 5)
@@ -381,7 +399,7 @@ hielo power(int board[Nfil][Ncol], personaje pnj)
             ice.create=false;
         }
 
-        for(j=startPlace; j<Ncol; j++)
+        for(j=startPlace; j<Game.gameCols; j++)
             if(board[i][j] == PAST_COLOR)
             {
                 board[i][j] = NEW_COLOR;
@@ -392,10 +410,10 @@ hielo power(int board[Nfil][Ncol], personaje pnj)
     }
     else if(pnj.direction == 'L')
     {
-        i=pnj.boardPlace.fil;
+        i=pnj.boardPlace.row;
 
-        startPlace = defineSquare(pnj.position.fil , pnj.position.col - pnj.box.leftBox).col-1;
-        ice.begin.fil = i;
+        startPlace = defineSquare(pnj.position.row , pnj.position.col - pnj.box.leftBox).col-1;
+        ice.begin.row = i;
         ice.begin.col = startPlace;
 
         if(board[i][startPlace] == 5)
@@ -424,7 +442,7 @@ hielo power(int board[Nfil][Ncol], personaje pnj)
     return ice;
 }
 
-void manageIce(int board[Nfil][Ncol], hielo *ice)
+void manageIce(int board[MAXFILS][MAXCOLS], hielo *ice)
 {
     if(ice->limit > 2)
     {
@@ -432,51 +450,51 @@ void manageIce(int board[Nfil][Ncol], hielo *ice)
         {
             if(ice->restantes>=3)
             {
-                if(board[ice->begin.fil][ice->begin.col] == 2)
-                    board[ice->begin.fil][ice->begin.col]=3;
-                else if(board[ice->begin.fil][ice->begin.col] == 3)
+                if(board[ice->begin.row][ice->begin.col] == 2)
+                    board[ice->begin.row][ice->begin.col]=3;
+                else if(board[ice->begin.row][ice->begin.col] == 3)
                 {
-                    board[ice->begin.fil][ice->begin.col]=4;
+                    board[ice->begin.row][ice->begin.col]=4;
                         switch (ice->direction)
                         {
                             case 'U':
-                                board[ice->begin.fil-1][ice->begin.col]=3;
+                                board[ice->begin.row-1][ice->begin.col]=3;
                                 break;
                             case 'D':
-                                board[ice->begin.fil+1][ice->begin.col]=3;
+                                board[ice->begin.row+1][ice->begin.col]=3;
                                 break;
                             case 'L':
-                                board[ice->begin.fil][ice->begin.col-1]=3;
+                                board[ice->begin.row][ice->begin.col-1]=3;
                                 break;
                             case 'R':
-                                board[ice->begin.fil][ice->begin.col+1]=3;
+                                board[ice->begin.row][ice->begin.col+1]=3;
                                 break;
                         }
                 }
-                else if(board[ice->begin.fil][ice->begin.col] == 4)
+                else if(board[ice->begin.row][ice->begin.col] == 4)
                 {
-                    board[ice->begin.fil][ice->begin.col]=5;
+                    board[ice->begin.row][ice->begin.col]=5;
                     ice->restantes--;
                         switch (ice->direction)
                         {
                             case 'U':
-                                board[ice->begin.fil-1][ice->begin.col]=4;
-                                board[ice->begin.fil-2][ice->begin.col]=3;
-                                ice->begin.fil--;
+                                board[ice->begin.row-1][ice->begin.col]=4;
+                                board[ice->begin.row-2][ice->begin.col]=3;
+                                ice->begin.row--;
                                 break;
                             case 'D':
-                                board[ice->begin.fil+1][ice->begin.col]=4;
-                                board[ice->begin.fil+2][ice->begin.col]=3;
-                                ice->begin.fil++;
+                                board[ice->begin.row+1][ice->begin.col]=4;
+                                board[ice->begin.row+2][ice->begin.col]=3;
+                                ice->begin.row++;
                                 break;
                             case 'L':
-                                board[ice->begin.fil][ice->begin.col-1]=4;
-                                board[ice->begin.fil][ice->begin.col-2]=3;
+                                board[ice->begin.row][ice->begin.col-1]=4;
+                                board[ice->begin.row][ice->begin.col-2]=3;
                                 ice->begin.col--;
                                 break;
                             case 'R':
-                                board[ice->begin.fil][ice->begin.col+1]=4;
-                                board[ice->begin.fil][ice->begin.col+2]=3;
+                                board[ice->begin.row][ice->begin.col+1]=4;
+                                board[ice->begin.row][ice->begin.col+2]=3;
                                 ice->begin.col++;
                                 break;
                         }
@@ -484,23 +502,23 @@ void manageIce(int board[Nfil][Ncol], hielo *ice)
             }
             else if(ice->restantes==2)
             {
-                board[ice->begin.fil][ice->begin.col]=5;
+                board[ice->begin.row][ice->begin.col]=5;
                 switch (ice->direction)
                 {
                     case 'U':
-                        board[ice->begin.fil-1][ice->begin.col]=4;
-                        ice->begin.fil--;
+                        board[ice->begin.row-1][ice->begin.col]=4;
+                        ice->begin.row--;
                         break;
                     case 'D':
-                        board[ice->begin.fil+1][ice->begin.col]=4;
-                        ice->begin.fil++;
+                        board[ice->begin.row+1][ice->begin.col]=4;
+                        ice->begin.row++;
                         break;
                     case 'L':
-                        board[ice->begin.fil][ice->begin.col-1]=4;
+                        board[ice->begin.row][ice->begin.col-1]=4;
                         ice->begin.col--;
                         break;
                     case 'R':
-                        board[ice->begin.fil][ice->begin.col+1]=4;
+                        board[ice->begin.row][ice->begin.col+1]=4;
                         ice->begin.col++;
                         break;
                 }
@@ -508,7 +526,7 @@ void manageIce(int board[Nfil][Ncol], hielo *ice)
             }
             else if(ice->restantes==1)
             {
-                board[ice->begin.fil][ice->begin.col]=5;
+                board[ice->begin.row][ice->begin.col]=5;
                 ice->restantes--;
             }
             else if(ice->restantes == 0)
@@ -520,51 +538,51 @@ void manageIce(int board[Nfil][Ncol], hielo *ice)
         {
             if(ice->restantes>=3)
             {
-                if(board[ice->begin.fil][ice->begin.col] == 5)
-                    board[ice->begin.fil][ice->begin.col]=4;
-                else if(board[ice->begin.fil][ice->begin.col] == 4)
+                if(board[ice->begin.row][ice->begin.col] == 5)
+                    board[ice->begin.row][ice->begin.col]=4;
+                else if(board[ice->begin.row][ice->begin.col] == 4)
                 {
-                    board[ice->begin.fil][ice->begin.col]=3;
+                    board[ice->begin.row][ice->begin.col]=3;
                         switch (ice->direction)
                         {
                             case 'U':
-                                board[ice->begin.fil-1][ice->begin.col]=4;
+                                board[ice->begin.row-1][ice->begin.col]=4;
                                 break;
                             case 'D':
-                                board[ice->begin.fil+1][ice->begin.col]=4;
+                                board[ice->begin.row+1][ice->begin.col]=4;
                                 break;
                             case 'L':
-                                board[ice->begin.fil][ice->begin.col-1]=4;
+                                board[ice->begin.row][ice->begin.col-1]=4;
                                 break;
                             case 'R':
-                                board[ice->begin.fil][ice->begin.col+1]=4;
+                                board[ice->begin.row][ice->begin.col+1]=4;
                                 break;
                         }
                 }
-                else if(board[ice->begin.fil][ice->begin.col] == 3)
+                else if(board[ice->begin.row][ice->begin.col] == 3)
                 {
-                    board[ice->begin.fil][ice->begin.col]=0;
+                    board[ice->begin.row][ice->begin.col]=0;
                     ice->restantes--;
                         switch (ice->direction)
                         {
                             case 'U':
-                                board[ice->begin.fil-1][ice->begin.col]=3;
-                                board[ice->begin.fil-2][ice->begin.col]=4;
-                                ice->begin.fil--;
+                                board[ice->begin.row-1][ice->begin.col]=3;
+                                board[ice->begin.row-2][ice->begin.col]=4;
+                                ice->begin.row--;
                                 break;
                             case 'D':
-                                board[ice->begin.fil+1][ice->begin.col]=3;
-                                board[ice->begin.fil+2][ice->begin.col]=4;
-                                ice->begin.fil++;
+                                board[ice->begin.row+1][ice->begin.col]=3;
+                                board[ice->begin.row+2][ice->begin.col]=4;
+                                ice->begin.row++;
                                 break;
                             case 'L':
-                                board[ice->begin.fil][ice->begin.col-1]=3;
-                                board[ice->begin.fil][ice->begin.col-2]=4;
+                                board[ice->begin.row][ice->begin.col-1]=3;
+                                board[ice->begin.row][ice->begin.col-2]=4;
                                 ice->begin.col--;
                                 break;
                             case 'R':
-                                board[ice->begin.fil][ice->begin.col+1]=3;
-                                board[ice->begin.fil][ice->begin.col+2]=4;
+                                board[ice->begin.row][ice->begin.col+1]=3;
+                                board[ice->begin.row][ice->begin.col+2]=4;
                                 ice->begin.col++;
                                 break;
                         }
@@ -572,23 +590,23 @@ void manageIce(int board[Nfil][Ncol], hielo *ice)
             }
             else if(ice->restantes==2)
             {
-                board[ice->begin.fil][ice->begin.col]=0;
+                board[ice->begin.row][ice->begin.col]=0;
                 switch (ice->direction)
                 {
                     case 'U':
-                        board[ice->begin.fil-1][ice->begin.col]=3;
-                        ice->begin.fil--;
+                        board[ice->begin.row-1][ice->begin.col]=3;
+                        ice->begin.row--;
                         break;
                     case 'D':
-                        board[ice->begin.fil+1][ice->begin.col]=3;
-                        ice->begin.fil++;
+                        board[ice->begin.row+1][ice->begin.col]=3;
+                        ice->begin.row++;
                         break;
                     case 'L':
-                        board[ice->begin.fil][ice->begin.col-1]=3;
+                        board[ice->begin.row][ice->begin.col-1]=3;
                         ice->begin.col--;
                         break;
                     case 'R':
-                        board[ice->begin.fil][ice->begin.col+1]=3;
+                        board[ice->begin.row][ice->begin.col+1]=3;
                         ice->begin.col++;
                         break;
                 }
@@ -596,7 +614,7 @@ void manageIce(int board[Nfil][Ncol], hielo *ice)
             }
             else if(ice->restantes==1)
             {
-                board[ice->begin.fil][ice->begin.col]=0;
+                board[ice->begin.row][ice->begin.col]=0;
                 ice->restantes--;
             }
             if(ice->restantes == 0)
@@ -611,46 +629,46 @@ void manageIce(int board[Nfil][Ncol], hielo *ice)
         {
             if(ice->restantes==2)
             {
-                if(board[ice->begin.fil][ice->begin.col] == 2)
-                    board[ice->begin.fil][ice->begin.col]=3;
-                else if(board[ice->begin.fil][ice->begin.col] == 3)
+                if(board[ice->begin.row][ice->begin.col] == 2)
+                    board[ice->begin.row][ice->begin.col]=3;
+                else if(board[ice->begin.row][ice->begin.col] == 3)
                 {
-                    board[ice->begin.fil][ice->begin.col]=4;
+                    board[ice->begin.row][ice->begin.col]=4;
                     switch (ice->direction)
                     {
                         case 'U':
-                            board[ice->begin.fil-1][ice->begin.col]=3;
+                            board[ice->begin.row-1][ice->begin.col]=3;
                             break;
                         case 'D':
-                            board[ice->begin.fil+1][ice->begin.col]=3;
+                            board[ice->begin.row+1][ice->begin.col]=3;
                             break;
                         case 'L':
-                            board[ice->begin.fil][ice->begin.col-1]=3;
+                            board[ice->begin.row][ice->begin.col-1]=3;
                             break;
                         case 'R':
-                            board[ice->begin.fil][ice->begin.col+1]=3;
+                            board[ice->begin.row][ice->begin.col+1]=3;
                             break;
                     }
                 }
-                else if(board[ice->begin.fil][ice->begin.col] == 4)
+                else if(board[ice->begin.row][ice->begin.col] == 4)
                 {
-                    board[ice->begin.fil][ice->begin.col]=5;
+                    board[ice->begin.row][ice->begin.col]=5;
                     switch (ice->direction)
                     {
                         case 'U':
-                            board[ice->begin.fil-1][ice->begin.col]=4;
-                            ice->begin.fil--;
+                            board[ice->begin.row-1][ice->begin.col]=4;
+                            ice->begin.row--;
                             break;
                         case 'D':
-                            board[ice->begin.fil+1][ice->begin.col]=4;
-                            ice->begin.fil++;
+                            board[ice->begin.row+1][ice->begin.col]=4;
+                            ice->begin.row++;
                             break;
                         case 'L':
-                            board[ice->begin.fil][ice->begin.col-1]=4;
+                            board[ice->begin.row][ice->begin.col-1]=4;
                             ice->begin.col--;
                             break;
                         case 'R':
-                            board[ice->begin.fil][ice->begin.col+1]=4;
+                            board[ice->begin.row][ice->begin.col+1]=4;
                             ice->begin.col++;
                             break;
                     }
@@ -659,7 +677,7 @@ void manageIce(int board[Nfil][Ncol], hielo *ice)
             }
             else if(ice->restantes==1)
             {
-                board[ice->begin.fil][ice->begin.col]=5;
+                board[ice->begin.row][ice->begin.col]=5;
                 ice->restantes--;
             }
             else if(ice->restantes == 0)
@@ -671,46 +689,46 @@ void manageIce(int board[Nfil][Ncol], hielo *ice)
         {
             if(ice->restantes==2)
             {
-                if(board[ice->begin.fil][ice->begin.col] == 5)
-                    board[ice->begin.fil][ice->begin.col]=4;
-                else if(board[ice->begin.fil][ice->begin.col] == 4)
+                if(board[ice->begin.row][ice->begin.col] == 5)
+                    board[ice->begin.row][ice->begin.col]=4;
+                else if(board[ice->begin.row][ice->begin.col] == 4)
                 {
-                    board[ice->begin.fil][ice->begin.col]=3;
+                    board[ice->begin.row][ice->begin.col]=3;
                     switch (ice->direction)
                     {
                         case 'U':
-                            board[ice->begin.fil-1][ice->begin.col]=4;
+                            board[ice->begin.row-1][ice->begin.col]=4;
                             break;
                         case 'D':
-                            board[ice->begin.fil+1][ice->begin.col]=4;
+                            board[ice->begin.row+1][ice->begin.col]=4;
                             break;
                         case 'L':
-                            board[ice->begin.fil][ice->begin.col-1]=4;
+                            board[ice->begin.row][ice->begin.col-1]=4;
                             break;
                         case 'R':
-                            board[ice->begin.fil][ice->begin.col+1]=4;
+                            board[ice->begin.row][ice->begin.col+1]=4;
                             break;
                     }
                 }
-                else if(board[ice->begin.fil][ice->begin.col] == 3)
+                else if(board[ice->begin.row][ice->begin.col] == 3)
                 {
-                    board[ice->begin.fil][ice->begin.col]=0;
+                    board[ice->begin.row][ice->begin.col]=0;
                     switch (ice->direction)
                     {
                         case 'U':
-                            board[ice->begin.fil-1][ice->begin.col]=3;
-                            ice->begin.fil--;
+                            board[ice->begin.row-1][ice->begin.col]=3;
+                            ice->begin.row--;
                             break;
                         case 'D':
-                            board[ice->begin.fil+1][ice->begin.col]=3;
-                            ice->begin.fil++;
+                            board[ice->begin.row+1][ice->begin.col]=3;
+                            ice->begin.row++;
                             break;
                         case 'L':
-                            board[ice->begin.fil][ice->begin.col-1]=3;
+                            board[ice->begin.row][ice->begin.col-1]=3;
                             ice->begin.col--;
                             break;
                         case 'R':
-                            board[ice->begin.fil][ice->begin.col+1]=3;
+                            board[ice->begin.row][ice->begin.col+1]=3;
                             ice->begin.col++;
                             break;
                     }
@@ -719,7 +737,7 @@ void manageIce(int board[Nfil][Ncol], hielo *ice)
             }
             else if(ice->restantes==1)
             {
-                board[ice->begin.fil][ice->begin.col]=0;
+                board[ice->begin.row][ice->begin.col]=0;
                 ice->restantes--;
             }
             else if(ice->restantes == 0)
@@ -732,25 +750,25 @@ void manageIce(int board[Nfil][Ncol], hielo *ice)
     {
         if(ice->create)
         {
-            if(board[ice->begin.fil][ice->begin.col] == 2)
-                board[ice->begin.fil][ice->begin.col]=3;
-            else if(board[ice->begin.fil][ice->begin.col] == 3)
-                board[ice->begin.fil][ice->begin.col]=4;
-            else if(board[ice->begin.fil][ice->begin.col] == 4)
+            if(board[ice->begin.row][ice->begin.col] == 2)
+                board[ice->begin.row][ice->begin.col]=3;
+            else if(board[ice->begin.row][ice->begin.col] == 3)
+                board[ice->begin.row][ice->begin.col]=4;
+            else if(board[ice->begin.row][ice->begin.col] == 4)
             {
-                board[ice->begin.fil][ice->begin.col]=5;
+                board[ice->begin.row][ice->begin.col]=5;
                 ice->restantes--;
             }
         }
         if(!ice->create)
         {
-            if(board[ice->begin.fil][ice->begin.col] == 5)
-                board[ice->begin.fil][ice->begin.col]=4;
-            else if(board[ice->begin.fil][ice->begin.col] == 4)
-                board[ice->begin.fil][ice->begin.col]=3;
-            else if(board[ice->begin.fil][ice->begin.col] == 3)
+            if(board[ice->begin.row][ice->begin.col] == 5)
+                board[ice->begin.row][ice->begin.col]=4;
+            else if(board[ice->begin.row][ice->begin.col] == 4)
+                board[ice->begin.row][ice->begin.col]=3;
+            else if(board[ice->begin.row][ice->begin.col] == 3)
             {
-                board[ice->begin.fil][ice->begin.col]=0;
+                board[ice->begin.row][ice->begin.col]=0;
                 ice->restantes--;
             }
         }
@@ -766,7 +784,7 @@ void manageIce(int board[Nfil][Ncol], hielo *ice)
     return;
 }
 
-int getBoard(int board[Nfil][Ncol], char numero[3])
+int getBoard(int board[MAXFILS][MAXCOLS], char numero[3])
 {
     int i,j;
     char filename[12] = "level";
@@ -785,9 +803,12 @@ int getBoard(int board[Nfil][Ncol], char numero[3])
     else
         printf("Archivo abierto\n");
 
-    for(i=0; i<Nfil; i++)
-    for(j=0; j<Ncol; j++)
-        fscanf(game,"%d",&board[i][j]);
+    fscanf(game, "%d", &Game.gameRows); //Leyendo columnas
+    fscanf(game, "%d", &Game.gameCols); //Leyendo filas
+
+    for(i=0; i<Game.gameRows; i++)
+    for(j=0; j<Game.gameCols; j++)
+        fscanf(game,"%d", &board[i][j]);
 
     fclose(game);
 
@@ -828,9 +849,9 @@ void draw_pnj(personaje *pnj, ALLEGRO_BITMAP *image){
             pnj->spriteFil = 0;
     }
 
-    //al_draw_filled_rectangle(pnj->position.col-pnj->box.leftBox, pnj->position.fil-pnj->box.upBox, pnj->position.col+pnj->box.rightBox, pnj->position.fil+pnj->box.bottomBox, color_purple1);
+    al_draw_filled_rectangle(pnj->position.col-pnj->box.leftBox - Game.mapColStart, pnj->position.row-pnj->box.upBox  - Game.mapFilStart, pnj->position.col+pnj->box.rightBox -Game.mapColStart, pnj->position.row+pnj->box.bottomBox - Game.mapFilStart, color_purple1);
 
-    al_draw_bitmap_region(image, (spriteWidht*pnj->spriteFil),(spriteHeight*spritecol),spriteWidht,spriteHeight, pnj->position.col-(spriteWidht/2), pnj->position.fil-(spriteHeight/2), 0);
+    al_draw_bitmap_region(image, (spriteWidht*pnj->spriteFil),(spriteHeight*spritecol),spriteWidht,spriteHeight, pnj->position.col-(spriteWidht/2) - Game.mapColStart , pnj->position.row-(spriteHeight/2) - Game.mapFilStart, 0);
     return;
 }
 
@@ -849,8 +870,8 @@ void draw_background(ALLEGRO_BITMAP *bitmap)
     al_clear_to_color(color_black);
 
     srand(time(0));
-    for (i = 0; i < Nfil; i++) {
-        for (j = 0; j < Ncol; j++) {
+    for (i = 0; i < Game.gameRows; i++) {
+        for (j = 0; j < Game.gameCols; j++) {
             al_draw_bitmap_region(grass, (frameCount*64), 0, 64, 64 , j*lado, i*lado, 0);
             frameCount = rand() % 4;
         }
@@ -862,19 +883,39 @@ void draw_background(ALLEGRO_BITMAP *bitmap)
     return;
 }
 
-void draw_board(int board[Nfil][Ncol]){
+void draw_board(int board[MAXFILS][MAXCOLS]){
     int i,j;
     rockBitmap = al_load_bitmap("./src/sprites/board/rock.png");
     int rockwidht = 64, rockheight = 64;
 
-    for(i=0; i<Nfil; i++)
+    //Definiendo comienzo en X
+    if((player1.position.col + (windowWidth/2)) > (Game.gameCols*lado))
+        Game.mapColStart = (Game.gameCols * lado) - windowWidth;
+    else if ((player1.position.col - (windowWidth/2)) < 0)
+        Game.mapColStart = 0;
+    else
+        Game.mapColStart = player1.position.col - (windowWidth/2);
+    //Definiendo comienzo en Y
+    if((player1.position.row + (windowheight/2)) > (Game.gameRows*lado))
+        Game.mapFilStart = (Game.gameRows * lado) - windowheight;
+    else if ((player1.position.row - (windowheight/2)) < 0)
+        Game.mapFilStart = 0;
+    else
+        Game.mapFilStart = player1.position.row - (windowheight/2);
+    al_draw_bitmap_region(board_bitmap,Game.mapColStart, Game.mapFilStart, windowWidth, windowheight, 0, 0, 0);
+
+    Game.startSquare.col = Game.mapColStart / lado;
+    Game.endSquare.col = (Game.mapColStart + windowWidth) / lado;
+    Game.startSquare.row = Game.mapFilStart / lado;
+    Game.endSquare.row = (Game.mapFilStart + windowheight) /lado;
+
+    for(i=Game.startSquare.row; i<=(Game.startSquare.row + windowNfil); i++)
     {
-        for(j=0; j<Ncol; j++)
+        for(j=Game.startSquare.col; j<=(Game.startSquare.col + windowNcol); j++)
         {
             if(board[i][j]>=3 && board[i][j]<=5)
             {
-                //printf("%d,%d,%d,%d,%d,%d,%d\n\n\n", board[i][j], (board[i][j]-2)*rockwidht, 0, rockwidht, rockheight, i*lado, j*lado);
-                al_draw_bitmap_region(rockBitmap, (board[i][j]-3)*rockwidht, 0, rockwidht, rockheight, j*lado, i*lado, 0 );
+                al_draw_bitmap_region(rockBitmap, (board[i][j]-3)*rockwidht, 0, rockwidht, rockheight, j*lado - Game.mapColStart, i*lado - Game.mapFilStart, 0 );
             }
         }
     }
@@ -954,7 +995,7 @@ int pause_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *tim
     ALLEGRO_BITMAP *salir_bmap = al_load_bitmap("src/pauseMenu/960x640/salir.png");
 
     // Capturar la pantalla actual
-    ALLEGRO_BITMAP *screenshot = al_create_bitmap(Ncol*lado, Nfil*lado);
+    ALLEGRO_BITMAP *screenshot = al_create_bitmap(windowNcol*lado, windowNfil*lado);
     al_set_target_bitmap(screenshot);
     al_draw_bitmap(al_get_backbuffer(ventana), 0, 0, 0);
     al_set_target_backbuffer(al_get_current_display());
@@ -1019,22 +1060,22 @@ int pause_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *tim
     al_destroy_bitmap(salir_bmap);
 }
 
-int game(int board[Nfil][Ncol], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer)
+int game(int board[MAXFILS][MAXCOLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer)
 {
     bool done = false;
     int i, j;
     getBoard(board, "01");
-    for(i=0; i<Nfil; i++)
-    for(j=0; j<Ncol; j++)
+    for(i=0; i<Game.gameRows; i++)
+    for(j=0; j<Game.gameCols; j++)
     {
         if(board[i][j]==1)
             {
-                player1.boardPlace.fil=i;
+                player1.boardPlace.row=i;
                 player1.boardPlace.col=j;
             }
     }
     // Ubicando jugador
-    player1.position.fil=(lado/2)+(player1.boardPlace.fil*lado);
+    player1.position.row=(lado/2)+(player1.boardPlace.row*lado);
     player1.position.col=(lado/2)+(player1.boardPlace.col*lado);
 
     /*Variables utiles*/
@@ -1045,7 +1086,7 @@ int game(int board[Nfil][Ncol], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, A
     player_bitmap = al_load_bitmap("./src/sprites/pnj/spritesheet.png");
 
     /* Crear bitmap para el fondo del tablero */
-    board_bitmap = al_create_bitmap(Ncol * lado, Nfil * lado);
+    board_bitmap = al_create_bitmap(Game.gameCols * lado, Game.gameRows * lado);
     draw_background(board_bitmap);
 
     /*Inicia temporizador*/
@@ -1099,26 +1140,23 @@ int game(int board[Nfil][Ncol], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, A
 
             if (keys[ALLEGRO_KEY_UP])
             {
-                moveTo(board, &player1, player1.position.fil-(5*player1.velocity), player1.position.col);
+                moveTo(board, &player1, player1.position.row-(5*player1.velocity), player1.position.col);
             }
             else if (keys[ALLEGRO_KEY_DOWN])
             {
-                moveTo(board, &player1, player1.position.fil+(5*player1.velocity), player1.position.col);
+                moveTo(board, &player1, player1.position.row+(5*player1.velocity), player1.position.col);
             }
             else if (keys[ALLEGRO_KEY_LEFT])
             {
-                moveTo(board, &player1, player1.position.fil, player1.position.col-(5*player1.velocity));
+                moveTo(board, &player1, player1.position.row, player1.position.col-(5*player1.velocity));
             }
             else if (keys[ALLEGRO_KEY_RIGHT])
             {
-                moveTo(board, &player1, player1.position.fil, player1.position.col+(5*player1.velocity));
+                moveTo(board, &player1, player1.position.row, player1.position.col+(5*player1.velocity));
             }
 
             if((!ice.possible) && ((al_get_timer_count(timer)%2) == 0)) //Este if se ejecuta cada 2 ticks sólo si NO es posible crear hielo, es decir, si hay hielo pendiente por generar
                 manageIce(board,&ice);
-
-            /*Dibujamos el fondo en el backbuffer*/
-            al_draw_bitmap(board_bitmap,0,0,0);
 
             /* Dibujar el tablero con colores en el backbuffer*/
             draw_board(board);

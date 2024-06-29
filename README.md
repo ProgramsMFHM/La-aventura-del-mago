@@ -12,7 +12,7 @@ Para funcionar Allegro utiliza alginos módulos que se incluyen a modo de biblio
     #include <allegro5/allegro_ttf.h> // Uso de archivos ttf para fuentes
 ```
 
-## Inicialización de Allegro
+### Inicialización de Allegro
 Para funcionar Allegro precisa de la inicialización de sus diferentes módulos, a continuación un ejemplo;
 ```C++
 /*Inicialización allegro*/
@@ -25,7 +25,7 @@ al_install_keyboard(); // Teclado
 ```
 Podemos ver en el anterior ejemplo la inicialización.
 
-## Eventos, Fuentes de eventos
+### Eventos, Fuentes de eventos
 Para poder monitorear el comportamiento de los distintos periféricos de un computador Allegro ocupa eventos, similar a lo que se puede encontrar en lenguajes como `JS`.
 
 Lo primero que se debe hacer es inicializar una cola de eventos, un lugar al que llegarán todos ellos.
@@ -86,6 +86,7 @@ bool pressed_keys[ALLEGRO_KEY_MAX];
 Luego podemos, por ejemplo cambiar el valor de estos elementos a `true` o `false` a conveniencia.
 
 ## Tips usados en este proyecto
+### Arreglo de booleanos
 Como fué mencionado anteriormente el uso de un arreglo de booleanos para detectar teckas presionadas es una manera útil de usar los códigos de tecla de Allegro.
 ``` C++
 bool pressed_keys[ALLEGRO_KEY_MAX];
@@ -136,3 +137,20 @@ else if (keys[ALLEGRO_KEY_RIGHT])
 Decidimos qué hacer en caso de que una tecla esté presionada o no.
 
 Esto es útil para poder tener un movimiento fluido que dependa del tiempo y que sea compatible con presionar una tecla por un periodo prolongado de tiempo.
+
+#### Scroll - un mapa más grande
+Una de las funconalidades más curiosas es el poder moverte por un mapa de un tamaño distinto si así el nivel lo requiere; para hacer esto se siguieron los siguientes pasos.
+1. Cada archivo de nivel tiene al inicio una indicación con 2 nuemros *Numero de filas* y *Numero de columnas*
+2. Se crea una matriz que pueda almacenar cualquier mapa que se de,para esto se le asigna un tamaño de `MAXRPWS` y `MAXCOLS`
+3. Al cargar un nuevo nivel lo primero es con la función `draw_background()` generar el BITMAP para el mapa que se crea del tamaño del mapa indicado en el archivo (información que se guarda en una estructura de tipo `gameInfo`).
+
+A partir de este punto todo depende de la posición del jugador. Un jugador puede estar en la posición `3000` a pesar de que la ventana tenga solo `960px` de ancho, esto es porque el "mapa grande" abarca todas las posibles posiciones a nivel de pixeles. por lo que los siguientes pasos son:
+4. Se calculan los límites de la ventana. Partiendo de la posición del personaje en cada iteración se calcula la posición en que se debe ubicar la ventana para que el personaje quede en el centro de la misma (Se tiene en cuenta que cuando la ventana toca un borde del mapa entonces el límite de la ventana es ese borde).
+5. COn el paso anterior se consiguen dos valores fundamentales para la construcción del resto del mapa, estos son: parte de la estructua `gameInfo` y son `mapColStart` y `mapFilStart`; nos indican cuál es eñl primer pixel que debemos mostrar en ventana y de ahí se puede calcular el resto conocido el tamaño de la ventana deseada.
+6. Conocidos estos desplazamientos se calcula a qué casillas de el `board` corresponden y se renderiza solamente esta "submatriz".
+
+> 📘 Importante
+>
+> Un descubrimiento relevante para poder renderizar las imagenes de manera suave es que es posible imprimir un BITMAP en pantalla enb una posición negativa, es decir, con coordenadas que se salen de la pantalla. Podemos por ejemplo imprimir un mapa en la posición $(-50,-50)$ y se renderizará a partir de este punto el mapa mostrándose solo lo que quepa dentro de los pixeles asignados a la pantalla.
+>
+> Esto es útil puesto que para mostrar los sprites de los obstáculos no hace falta calcular "fracciones de casilla" sino que, puesto que se tiene el valor del lado de la casilla y el valor numérico de cada casilla dentro de la matriz `BOARD` al ejecutar algo como: "`(8*lado) - mapColStart`" obtendremos una posición exacta de dónde hay que imprimir un sprite para que se vea completo dentro de la pantalla.
