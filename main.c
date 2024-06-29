@@ -5,6 +5,8 @@
     #include <allegro5/allegro_ttf.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+#include<time.h>
 
 #define lado 64
 #define Nfil 10
@@ -834,19 +836,23 @@ void draw_pnj(personaje *pnj, ALLEGRO_BITMAP *image){
 
 void draw_background(ALLEGRO_BITMAP *bitmap)
 {
-    int i,j, num;
+    int i,j, frameCount;
     float x,y; //Valores de x, y usados en partes del código
     char str[4];
-    ALLEGRO_BITMAP *grass = al_load_bitmap("./src/sprites/board/grass.jpg");
+    ALLEGRO_BITMAP *grass = al_load_bitmap("./src/sprites/board/grass.png");
+
+    frameCount = 0;
 
     al_set_target_bitmap(bitmap);
 
     /* Nos aseguramos que el color del fondo sea negro */
     al_clear_to_color(color_black);
-    num = 1;
+
+    srand(time(0));
     for (i = 0; i < Nfil; i++) {
         for (j = 0; j < Ncol; j++) {
-            al_draw_bitmap(grass, j*lado, i*lado, 0);
+            al_draw_bitmap_region(grass, (frameCount*64), 0, 64, 64 , j*lado, i*lado, 0);
+            frameCount = rand() % 4;
         }
     }
 
