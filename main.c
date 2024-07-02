@@ -50,6 +50,7 @@ struct _personaje {
     int velocity;
     bool movement;
     int spriteFil;
+    int alcance;
 } player1;
 typedef struct _personaje personaje;
 
@@ -132,6 +133,7 @@ int main()
     player1.box.upBox=25;
     player1.box.bottomBox=25;
     player1.velocity=1;
+    player1.alcance=5;
 
     /*Inicialización allegro*/
     al_init();
@@ -352,7 +354,9 @@ hielo power(int board[MAXFILS][MAXCOLS], personaje pnj)
         }
 
         for(i=startPlace; i<Game.gameRows; i++)
-            if(board[i][j] == PAST_COLOR)
+            if(affectedSqares==pnj.alcance)
+                break;
+            else if(board[i][j] == PAST_COLOR)
             {
                 board[i][j] = NEW_COLOR;
                 affectedSqares++;
@@ -376,7 +380,9 @@ hielo power(int board[MAXFILS][MAXCOLS], personaje pnj)
         }
 
         for(i=startPlace; i>=0; i--)
-            if(board[i][j] == PAST_COLOR)
+            if(affectedSqares==pnj.alcance)
+                break;
+            else if(board[i][j] == PAST_COLOR)
             {
                 board[i][j] = NEW_COLOR;
                 affectedSqares++;
@@ -400,7 +406,9 @@ hielo power(int board[MAXFILS][MAXCOLS], personaje pnj)
         }
 
         for(j=startPlace; j<Game.gameCols; j++)
-            if(board[i][j] == PAST_COLOR)
+            if(affectedSqares==pnj.alcance)
+                break;
+            else if(board[i][j] == PAST_COLOR)
             {
                 board[i][j] = NEW_COLOR;
                 affectedSqares++;
@@ -424,7 +432,9 @@ hielo power(int board[MAXFILS][MAXCOLS], personaje pnj)
         }
 
         for(j=startPlace; j>=0; j--)
-            if(board[i][j] == PAST_COLOR)
+            if(affectedSqares==pnj.alcance)
+                break;
+            else if(board[i][j] == PAST_COLOR)
             {
                 board[i][j] = NEW_COLOR;
                 affectedSqares++;
@@ -849,7 +859,7 @@ void draw_pnj(personaje *pnj, ALLEGRO_BITMAP *image){
             pnj->spriteFil = 0;
     }
 
-    al_draw_filled_rectangle(pnj->position.col-pnj->box.leftBox - Game.mapColStart, pnj->position.row-pnj->box.upBox  - Game.mapFilStart, pnj->position.col+pnj->box.rightBox -Game.mapColStart, pnj->position.row+pnj->box.bottomBox - Game.mapFilStart, color_purple1);
+    //al_draw_filled_rectangle(pnj->position.col-pnj->box.leftBox - Game.mapColStart, pnj->position.row-pnj->box.upBox  - Game.mapFilStart, pnj->position.col+pnj->box.rightBox -Game.mapColStart, pnj->position.row+pnj->box.bottomBox - Game.mapFilStart, color_purple1);
 
     al_draw_bitmap_region(image, (spriteWidht*pnj->spriteFil),(spriteHeight*spritecol),spriteWidht,spriteHeight, pnj->position.col-(spriteWidht/2) - Game.mapColStart , pnj->position.row-(spriteHeight/2) - Game.mapFilStart, 0);
     return;
