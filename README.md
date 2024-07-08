@@ -138,7 +138,7 @@ Decidimos qué hacer en caso de que una tecla esté presionada o no.
 
 Esto es útil para poder tener un movimiento fluido que dependa del tiempo y que sea compatible con presionar una tecla por un periodo prolongado de tiempo.
 
-#### Scroll - un mapa más grande
+### Scroll - un mapa más grande
 Una de las funconalidades más curiosas es el poder moverte por un mapa de un tamaño distinto si así el nivel lo requiere; para hacer esto se siguieron los siguientes pasos.
 1. Cada archivo de nivel tiene al inicio una indicación con 2 nuemros *Numero de filas* y *Numero de columnas*
 2. Se crea una matriz que pueda almacenar cualquier mapa que se de,para esto se le asigna un tamaño de `MAXRPWS` y `MAXCOLS`
@@ -154,3 +154,8 @@ A partir de este punto todo depende de la posición del jugador. Un jugador pued
 > Un descubrimiento relevante para poder renderizar las imagenes de manera suave es que es posible imprimir un BITMAP en pantalla enb una posición negativa, es decir, con coordenadas que se salen de la pantalla. Podemos por ejemplo imprimir un mapa en la posición $(-50,-50)$ y se renderizará a partir de este punto el mapa mostrándose solo lo que quepa dentro de los pixeles asignados a la pantalla.
 >
 > Esto es útil puesto que para mostrar los sprites de los obstáculos no hace falta calcular "fracciones de casilla" sino que, puesto que se tiene el valor del lado de la casilla y el valor numérico de cada casilla dentro de la matriz `BOARD` al ejecutar algo como: "`(8*lado) - mapColStart`" obtendremos una posición exacta de dónde hay que imprimir un sprite para que se vea completo dentro de la pantalla.
+
+## Numeración de mapas.
+- **1** Personaje principal
+- **21-40** Objetos
+- **41-80** Muros - De 4 en 4 para usar el poder
