@@ -17,6 +17,7 @@
 #define MAXCOLS 30
 #define font_size 20
 #define FPS 30
+#define NORMAL_OBJECTS_TYPE 10
 
 struct _hitBox{
     int leftBox;
@@ -55,6 +56,13 @@ struct _personaje {
 } player1;
 typedef struct _personaje personaje;
 
+struct _object{
+    square position;
+    int type;
+    int state;
+};
+typedef struct _object object;
+
 struct _gameInfo
 {
     int gameRows;
@@ -62,9 +70,18 @@ struct _gameInfo
     square startSquare;
     square endSquare;
     int mapColStart;
-    int mapFilStart;
+    int mapRowStart;
+    int score;
+
+    object *normalObjects;
+    int numNormalObjects[NORMAL_OBJECTS_TYPE];
+    int totalNormalObjects;
+    int playingNormalObjectType;
+    int MAXNormalObjectType;
+
 } Game;
 typedef struct _gameInfo gameInfo;
+
 
 /*Colores*/
 ALLEGRO_COLOR color_black;
@@ -82,6 +99,8 @@ square defineSquare(int filPixel, int colPixel);
 hielo power(int board[MAXFILS][MAXCOLS], personaje pnj);
 void manageIce(int board[MAXFILS][MAXCOLS], hielo *ice);
 int getBoard(int board[MAXFILS][MAXCOLS], char numero[3]);
+void colision(square colisionsquare);
+bool manageObjects(int board[MAXFILS][MAXCOLS]);
 
 //Funciones gráficas
 void draw_boardRectangle(int fila, int columna, ALLEGRO_COLOR color);
@@ -170,6 +189,7 @@ int main()
             case 0: //jugar
                 if(game(board, event_queue, &ev, timer) == -1)
                     done =true;
+                free(Game.normalObjects);
                 break;
             case 1: //Score
                 printf("SCORE\n");
@@ -193,6 +213,8 @@ int main()
 // funciones lógicas
 int moveTo(int board[MAXFILS][MAXCOLS], personaje *pnj, int newfil, int newcol)
 {
+    square colisionSquare;
+
     //Definiendo direccion de personaje
     if((pnj->position.row) < newfil) //Mirando abajo
     {
@@ -306,6 +328,12 @@ int moveTo(int board[MAXFILS][MAXCOLS], personaje *pnj, int newfil, int newcol)
     // Alterando la posición del jugador en la matriz
     if((pnj->position.col / lado)!=pnj->boardPlace.col)
     {
+        if(board[pnj->position.row / lado][pnj->position.col / lado]!=0)
+        {
+            colisionSquare.row = pnj->position.row / lado;
+            colisionSquare.col = pnj->position.col / lado;
+            colision(colisionSquare);
+        }
         board[pnj->boardPlace.row][pnj->boardPlace.col] = 0;
         board[pnj->position.row / lado][pnj->position.col / lado] = 1;
         pnj->boardPlace.row = pnj->position.row / lado;
@@ -313,6 +341,12 @@ int moveTo(int board[MAXFILS][MAXCOLS], personaje *pnj, int newfil, int newcol)
     }
     if((pnj->position.row / lado)!=pnj->boardPlace.row)
     {
+        if(board[pnj->position.row / lado][pnj->position.col / lado]!=0)
+        {
+            colisionSquare.row = pnj->position.row / lado;
+            colisionSquare.col = pnj->position.col / lado;
+            colision(colisionSquare);
+        }
         board[pnj->boardPlace.row][pnj->boardPlace.col] = 0;
         board[pnj->position.row / lado][pnj->position.col / lado] = 1;
         pnj->boardPlace.row = pnj->position.row / lado;
@@ -655,10 +689,16 @@ void manageIce(int board[MAXFILS][MAXCOLS], hielo *ice)
 
 int getBoard(int board[MAXFILS][MAXCOLS], char numero[3])
 {
-    int i,j;
+    int i,j, normalObjectsCont=0;
+    Game.totalNormalObjects=0;
+    int foundedObjectType;
     char filename[12] = "level";
     strcat(filename, numero);
     strcat(filename, ".txt");
+
+    //Inicializamos objetos en 0
+    for(int i=0; i<NORMAL_OBJECTS_TYPE; i++)
+        Game.numNormalObjects[i]=0;
 
     printf("%s\n", filename);
 
@@ -677,11 +717,138 @@ int getBoard(int board[MAXFILS][MAXCOLS], char numero[3])
 
     for(i=0; i<Game.gameRows; i++)
     for(j=0; j<Game.gameCols; j++)
+    {
         fscanf(game,"%d", &board[i][j]);
 
+        if(board[i][j]>=21 && board[i][j]<=30) //Si es objeto cuenta ese objeto dentro de los tipos
+        {
+            Game.numNormalObjects[board[i][j]-21]++;
+            Game.totalNormalObjects++;
+        }
+    }
     fclose(game);
 
+    Game.normalObjects = malloc(sizeof(object)*Game.totalNormalObjects);
 
+    for(i=0; i<Game.gameRows; i++)
+    for(j=0; j<Game.gameCols; j++)
+    {
+        if(board[i][j]>=21 && board[i][j]<=30) //Si es objeto sacamos su informacion
+        {
+            Game.normalObjects[normalObjectsCont].position.row = i;
+            Game.normalObjects[normalObjectsCont].position.col = j;
+            Game.normalObjects[normalObjectsCont].type = board[i][j]-21;
+            Game.normalObjects[normalObjectsCont].state = -3;
+            normalObjectsCont++;
+        }
+    }
+
+
+    // Ordenando objetos
+    object aux;
+    for(int i=0; i<Game.totalNormalObjects-1; i++)
+    for(int j=0; j<Game.totalNormalObjects-i-1; j++)
+    if(Game.normalObjects[j].type>Game.normalObjects[j+1].type)
+    {
+        aux = Game.normalObjects[j];
+        Game.normalObjects[j] = Game.normalObjects[j+1];
+        Game.normalObjects[j+1] = aux;
+    }
+
+    for(i=0; i<NORMAL_OBJECTS_TYPE; i++)
+    {
+        if(Game.numNormalObjects[i]!=0)
+        {
+            for(j=0; j<Game.numNormalObjects[i]; j++)
+            {
+                Game.normalObjects[j].state=0;
+            }
+            foundedObjectType=i;
+            Game.playingNormalObjectType = foundedObjectType;
+            break;
+        }
+    }
+    for(i=0; i<Game.totalNormalObjects; i++)
+    {
+        if(Game.normalObjects[i].state!=0)
+            board[Game.normalObjects[i].position.row][Game.normalObjects[i].position.col]=0;
+    }
+
+    Game.MAXNormalObjectType = Game.normalObjects[Game.totalNormalObjects -1].type;
+
+    /* for(i=0; i<Game.totalNormalObjects; i++)
+    {
+        printf("Objeto %d, fila %d, columna %d, tipo %d, estado %d\n\n", i, Game.normalObjects[i].position.row, Game.normalObjects[i].position.col, Game.normalObjects[i].type, Game.normalObjects[i].state);
+    } */
+
+    return 0;
+}
+
+void colision(square colisionsquare)
+{
+    int i;
+    for(i=0; i<Game.totalNormalObjects; i++)
+    {
+        if((Game.normalObjects[i].position.row == colisionsquare.row) && (Game.normalObjects[i].position.col == colisionsquare.col))
+        {
+            Game.normalObjects[i].state = 1;
+        }
+    }
+}
+
+bool manageObjects(int board[MAXFILS][MAXCOLS])
+{
+    int i, pasedTypesObjects=0;
+    bool nextNormalObjectType=1;
+
+    for(i=0; i<Game.playingNormalObjectType; i++)
+    {
+        pasedTypesObjects += Game.numNormalObjects[i];
+    }
+
+    //Revisando si fueron recogidos los objetos actuales
+    for(i=pasedTypesObjects; i<(pasedTypesObjects + Game.numNormalObjects[Game.playingNormalObjectType]); i++)
+    {
+        if(Game.normalObjects[i].state !=3)
+            nextNormalObjectType=0;
+    }
+
+    if(nextNormalObjectType)
+    {
+        pasedTypesObjects += Game.numNormalObjects[Game.playingNormalObjectType];
+        Game.playingNormalObjectType++;
+
+        if(Game.playingNormalObjectType<=Game.MAXNormalObjectType)
+        {
+            for(i=pasedTypesObjects; i<(pasedTypesObjects + Game.numNormalObjects[Game.playingNormalObjectType]); i++)
+            {
+                Game.normalObjects[i].state = -2;
+                board[Game.normalObjects[i].position.row][Game.normalObjects[i].position.col] = Game.normalObjects[i].type+21;
+            }
+        }
+        else
+            return 1;
+    }
+
+    //Manejando estados pasajeros de objetos normales
+    for(i=0; i<Game.totalNormalObjects; i++)
+    {
+        switch (Game.normalObjects[i].state)
+        {
+        case -2:
+            Game.normalObjects[i].state++;
+            break;
+        case -1:
+            Game.normalObjects[i].state++;
+            break;
+        case 1:
+            Game.normalObjects[i].state++;
+            break;
+        case 2:
+            Game.normalObjects[i].state++;
+            break;
+        }
+    }
     return 0;
 }
 
@@ -718,9 +885,9 @@ void draw_pnj(personaje *pnj, ALLEGRO_BITMAP *image){
             pnj->spriteFil = 0;
     }
 
-    //al_draw_filled_rectangle(pnj->position.col-pnj->box.leftBox - Game.mapColStart, pnj->position.row-pnj->box.upBox  - Game.mapFilStart, pnj->position.col+pnj->box.rightBox -Game.mapColStart, pnj->position.row+pnj->box.bottomBox - Game.mapFilStart, color_purple1);
+    //al_draw_filled_rectangle(pnj->position.col-pnj->box.leftBox - Game.mapColStart, pnj->position.row-pnj->box.upBox  - Game.mapRowStart, pnj->position.col+pnj->box.rightBox -Game.mapColStart, pnj->position.row+pnj->box.bottomBox - Game.mapRowStart, color_purple1);
 
-    al_draw_bitmap_region(image, (spriteWidht*pnj->spriteFil),(spriteHeight*spritecol),spriteWidht,spriteHeight, pnj->position.col-(spriteWidht/2) - Game.mapColStart , pnj->position.row-(spriteHeight/2) - Game.mapFilStart, 0);
+    al_draw_bitmap_region(image, (spriteWidht*pnj->spriteFil),(spriteHeight*spritecol),spriteWidht,spriteHeight, pnj->position.col-(spriteWidht/2) - Game.mapColStart , pnj->position.row-(spriteHeight/2) - Game.mapRowStart, 0);
     return;
 }
 
@@ -756,7 +923,7 @@ void draw_board(int board[MAXFILS][MAXCOLS]){
     int i,j;
     rockBitmap = al_load_bitmap("./src/sprites/board/rock.png");
     flowerBitmap = al_load_bitmap("./src/sprites/board/flowers.png");
-    int rockwidht = 64, rockheight = 64;
+    int mapSpriteWidht = 64, mapSpriteHeight = 64;
 
     //Definiendo comienzo en X
     if((player1.position.col + (windowWidth/2)) > (Game.gameCols*lado))
@@ -767,17 +934,17 @@ void draw_board(int board[MAXFILS][MAXCOLS]){
         Game.mapColStart = player1.position.col - (windowWidth/2);
     //Definiendo comienzo en Y
     if((player1.position.row + (windowheight/2)) > (Game.gameRows*lado))
-        Game.mapFilStart = (Game.gameRows * lado) - windowheight;
+        Game.mapRowStart = (Game.gameRows * lado) - windowheight;
     else if ((player1.position.row - (windowheight/2)) < 0)
-        Game.mapFilStart = 0;
+        Game.mapRowStart = 0;
     else
-        Game.mapFilStart = player1.position.row - (windowheight/2);
-    al_draw_bitmap_region(board_bitmap,Game.mapColStart, Game.mapFilStart, windowWidth, windowheight, 0, 0, 0);
+        Game.mapRowStart = player1.position.row - (windowheight/2);
+    al_draw_bitmap_region(board_bitmap,Game.mapColStart, Game.mapRowStart, windowWidth, windowheight, 0, 0, 0);
 
     Game.startSquare.col = Game.mapColStart / lado;
     Game.endSquare.col = (Game.mapColStart + windowWidth) / lado;
-    Game.startSquare.row = Game.mapFilStart / lado;
-    Game.endSquare.row = (Game.mapFilStart + windowheight) /lado;
+    Game.startSquare.row = Game.mapRowStart / lado;
+    Game.endSquare.row = (Game.mapRowStart + windowheight) /lado;
 
     for(i=Game.startSquare.row; i<=(Game.startSquare.row + windowNfil); i++)
     {
@@ -785,14 +952,33 @@ void draw_board(int board[MAXFILS][MAXCOLS]){
         {
             if(board[i][j]>=41 && board[i][j]<=44)
             {
-                al_draw_bitmap_region(rockBitmap, (board[i][j]-42)*rockwidht, 0, rockwidht, rockheight, j*lado - Game.mapColStart, i*lado - Game.mapFilStart, 0 );
-            }
-            else if(board[i][j]==21)
-            {
-                al_draw_bitmap_region(flowerBitmap, 0, 0, rockwidht, rockheight, j*lado - Game.mapColStart, i*lado - Game.mapFilStart, 0 );
+                al_draw_bitmap_region(rockBitmap, (board[i][j]-42)*mapSpriteWidht, 0, mapSpriteWidht, mapSpriteHeight, j*lado - Game.mapColStart, i*lado - Game.mapRowStart, 0 );
             }
         }
     }
+
+    for(i=0; i<Game.totalNormalObjects; i++)
+    {
+        switch (Game.normalObjects[i].state)
+        {
+        case -2:
+            al_draw_filled_circle(Game.normalObjects[i].position.col*lado + lado/2 - Game.mapColStart,Game.normalObjects[i].position.row*lado + lado/2 - Game.mapRowStart,16, color_green3);
+            break;
+        case -1:
+            al_draw_filled_circle(Game.normalObjects[i].position.col*lado + lado/2 - Game.mapColStart,Game.normalObjects[i].position.row*lado + lado/2 - Game.mapRowStart,32, color_green4);
+            break;
+        case 0:
+            al_draw_bitmap_region(flowerBitmap, mapSpriteWidht*Game.normalObjects[i].type, 0, mapSpriteWidht, mapSpriteHeight, Game.normalObjects[i].position.col*lado - Game.mapColStart, Game.normalObjects[i].position.row*lado - Game.mapRowStart, 0 );
+            break;
+        case 1:
+            al_draw_filled_circle(Game.normalObjects[i].position.col*lado + lado/2 - Game.mapColStart,Game.normalObjects[i].position.row*lado + lado/2 - Game.mapRowStart,32, color_green3);
+            break;
+        case 2:
+            al_draw_filled_circle(Game.normalObjects[i].position.col*lado + lado/2 - Game.mapColStart,Game.normalObjects[i].position.row*lado + lado/2 - Game.mapRowStart,16, color_green4);
+            break;
+        }
+    }
+
     al_destroy_bitmap(rockBitmap);
     al_destroy_bitmap(flowerBitmap);
 }
@@ -966,6 +1152,7 @@ int game(int board[MAXFILS][MAXCOLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT 
     draw_background(board_bitmap);
 
     /*Inicia temporizador*/
+    al_set_timer_count(timer, 0);
     al_start_timer(timer);
 
     while (!done)
@@ -1034,6 +1221,12 @@ int game(int board[MAXFILS][MAXCOLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT 
             if((!ice.possible) && ((al_get_timer_count(timer)%2) == 0)) //Este if se ejecuta cada 2 ticks sólo si NO es posible crear hielo, es decir, si hay hielo pendiente por generar
                 manageIce(board,&ice);
 
+            if(manageObjects(board))
+            {
+                al_stop_timer(timer);
+                done = 1;
+            }
+
             /* Dibujar el tablero con colores en el backbuffer*/
             draw_board(board);
 
@@ -1044,5 +1237,9 @@ int game(int board[MAXFILS][MAXCOLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT 
             al_flip_display();
         }
     }
+    for(i=0; i<ALLEGRO_KEY_MAX; i++) //Se "levantan" todas las teclas
+        keys[i] = false;
+    Game.score = al_get_timer_count(timer);
+    printf("Score: %d\n\n", Game.score);
     return 0;
 }

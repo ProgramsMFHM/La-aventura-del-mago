@@ -158,4 +158,16 @@ A partir de este punto todo depende de la posición del jugador. Un jugador pued
 ## Numeración de mapas.
 - **1** Personaje principal
 - **21-40** Objetos
+    - **21-30** Objetos normales
+    - **31-40** Objetos especiales
 - **41-80** Muros - De 4 en 4 para usar el poder
+
+
+## Estados de un objeto.
+- **-3** Objeto no visible
+- **-2** Objeto empieza a ser visible (1)
+- **-1** Objeto empieza a ser visible (2)
+- **0** Objeto Visible
+- **1** Objeto empieza a no ser visible (1)
+- **2** Objeto empieza a no ser visible (2)
+- **3** Objeto recogido
