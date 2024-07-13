@@ -19,6 +19,7 @@
 #define FPS 30
 #define NORMAL_OBJECTS_TYPE 10
 #define ENEMY_TYPES 2
+#define objectTimerCount 4
 
 struct _hitBox{
     int leftBox;
@@ -76,6 +77,7 @@ struct _object{
     square position;
     int type;
     int state;
+    int cont;
 };
 typedef struct _object object;
 
@@ -123,7 +125,6 @@ int manageEnemy(int board[MAXFILS][MAXCOLS], enemigo *enemy);
 int getBoard(int board[MAXFILS][MAXCOLS], char numero[3]);
 int colision(int board[MAXFILS][MAXCOLS], square colisionsquare);
 bool manageObjects(int board[MAXFILS][MAXCOLS]);
-
 //Funciones gráficas
 void draw_boardRectangle(int fila, int columna, ALLEGRO_COLOR color);
 void draw_pnj(personaje *pnj, ALLEGRO_BITMAP *image);
@@ -1082,6 +1083,7 @@ int colision(int board[MAXFILS][MAXCOLS], square colisionsquare)
         if((Game.normalObjects[i].position.row == colisionsquare.row) && (Game.normalObjects[i].position.col == colisionsquare.col))
         {
             Game.normalObjects[i].state = 1;
+            Game.normalObjects[i].cont = Game.normalObjects[i].state!=0;
         }
     }
     return 0;
@@ -1118,6 +1120,7 @@ bool manageObjects(int board[MAXFILS][MAXCOLS])
             for(i=pasedTypesObjects; i<(pasedTypesObjects + Game.numNormalObjects[Game.playingNormalObjectType]); i++)
             {
                 Game.normalObjects[i].state = -2;
+                Game.normalObjects[i].cont = objectTimerCount;
                 board[Game.normalObjects[i].position.row][Game.normalObjects[i].position.col] = Game.normalObjects[i].type+21;
             }
         }
@@ -1128,20 +1131,28 @@ bool manageObjects(int board[MAXFILS][MAXCOLS])
     //Manejando estados pasajeros de objetos normales
     for(i=0; i<Game.totalNormalObjects; i++)
     {
-        switch (Game.normalObjects[i].state)
+        if(Game.normalObjects[i].state<3 && Game.normalObjects[i].state!=0)
         {
-        case -2:
-            Game.normalObjects[i].state++;
-            break;
-        case -1:
-            Game.normalObjects[i].state++;
-            break;
-        case 1:
-            Game.normalObjects[i].state++;
-            break;
-        case 2:
-            Game.normalObjects[i].state++;
-            break;
+            if(Game.normalObjects[i].cont !=0)
+                Game.normalObjects[i].cont--;
+            else
+                {switch (Game.normalObjects[i].state)
+                {
+                case -2:
+                    Game.normalObjects[i].state++;
+                    break;
+                case -1:
+                    Game.normalObjects[i].state++;
+                    break;
+                case 1:
+                    Game.normalObjects[i].state++;
+                    break;
+                case 2:
+                    Game.normalObjects[i].state++;
+                    break;
+                }
+                Game.normalObjects[i].cont=objectTimerCount;
+            }
         }
     }
     return 0;
@@ -1218,6 +1229,7 @@ void draw_board(int board[MAXFILS][MAXCOLS]){
     int i,j;
     rockBitmap = al_load_bitmap("./src/sprites/board/rock.png");
     flowerBitmap = al_load_bitmap("./src/sprites/board/flowers.png");
+    ALLEGRO_BITMAP *sparcleBitmap = al_load_bitmap("./src/sprites/effects/sparcle.png");
     int mapSpriteWidht = 64, mapSpriteHeight = 64;
 
     //Definiendo comienzo en X
@@ -1266,19 +1278,19 @@ void draw_board(int board[MAXFILS][MAXCOLS]){
         switch (Game.normalObjects[i].state)
         {
         case -2:
-            al_draw_filled_circle(Game.normalObjects[i].position.col*lado + lado/2 - Game.mapColStart,Game.normalObjects[i].position.row*lado + lado/2 - Game.mapRowStart,16, color_green3);
+            al_draw_bitmap_region(sparcleBitmap, mapSpriteWidht*0, 0, mapSpriteWidht, mapSpriteHeight, Game.normalObjects[i].position.col*lado - Game.mapColStart, Game.normalObjects[i].position.row*lado - Game.mapRowStart, 0 );
             break;
         case -1:
-            al_draw_filled_circle(Game.normalObjects[i].position.col*lado + lado/2 - Game.mapColStart,Game.normalObjects[i].position.row*lado + lado/2 - Game.mapRowStart,32, color_green4);
+            al_draw_bitmap_region(sparcleBitmap, mapSpriteWidht*1, 0, mapSpriteWidht, mapSpriteHeight, Game.normalObjects[i].position.col*lado - Game.mapColStart, Game.normalObjects[i].position.row*lado - Game.mapRowStart, 0 );
             break;
         case 0:
             al_draw_bitmap_region(flowerBitmap, mapSpriteWidht*Game.normalObjects[i].type, 0, mapSpriteWidht, mapSpriteHeight, Game.normalObjects[i].position.col*lado - Game.mapColStart, Game.normalObjects[i].position.row*lado - Game.mapRowStart, 0 );
             break;
         case 1:
-            al_draw_filled_circle(Game.normalObjects[i].position.col*lado + lado/2 - Game.mapColStart,Game.normalObjects[i].position.row*lado + lado/2 - Game.mapRowStart,32, color_green3);
+            al_draw_bitmap_region(sparcleBitmap, mapSpriteWidht*0, 0, mapSpriteWidht, mapSpriteHeight, Game.normalObjects[i].position.col*lado - Game.mapColStart, Game.normalObjects[i].position.row*lado - Game.mapRowStart, 0 );
             break;
         case 2:
-            al_draw_filled_circle(Game.normalObjects[i].position.col*lado + lado/2 - Game.mapColStart,Game.normalObjects[i].position.row*lado + lado/2 - Game.mapRowStart,16, color_green4);
+            al_draw_bitmap_region(sparcleBitmap, mapSpriteWidht*1, 0, mapSpriteWidht, mapSpriteHeight, Game.normalObjects[i].position.col*lado - Game.mapColStart, Game.normalObjects[i].position.row*lado - Game.mapRowStart, 0 );
             break;
         }
     }
@@ -1289,10 +1301,11 @@ void draw_board(int board[MAXFILS][MAXCOLS]){
             draw_enemy(&Game.enemies[i]);
 
     //Dibujando al jugador
-            draw_pnj(&player1, player_bitmap);
+    draw_pnj(&player1, player_bitmap);
 
     al_destroy_bitmap(rockBitmap);
     al_destroy_bitmap(flowerBitmap);
+    al_destroy_bitmap(sparcleBitmap);
 }
 
 void draw_enemy(enemigo *enemy)
