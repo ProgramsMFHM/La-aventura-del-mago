@@ -16,7 +16,7 @@
 #define MAXFILS 30
 #define MAXCOLS 30
 #define font_size 20
-#define FPS 30
+#define FPS 24
 #define NORMAL_OBJECTS_TYPE 10
 #define ENEMY_TYPES 2
 #define objectTimerCount 4
@@ -67,6 +67,8 @@ struct _enemigo {
     int type;
     int state;
     bool movement;
+    ALLEGRO_BITMAP *sprite;
+    char spriteName[40];
     int spriteFil;
     int alcance;
     int powerType;
@@ -973,6 +975,7 @@ int getBoard(int board[MAXFILS][MAXCOLS], char numero[3])
             Game.enemies[enemiesCont].position.col= j*lado + lado/2;
             Game.enemies[enemiesCont].movement=1;
             Game.enemies[enemiesCont].type = board[i][j]-2;
+            Game.enemies[enemiesCont].spriteFil = 0;
             enemiesCont++;
         }
     }
@@ -1032,6 +1035,8 @@ int getBoard(int board[MAXFILS][MAXCOLS], char numero[3])
             Game.enemies[i].box.bottomBox=20;
             Game.enemies[i].box.leftBox=20;
             Game.enemies[i].box.rightBox=20;
+            sprintf(Game.enemies[i].spriteName, "./src/sprites/enemies/enemy%d.png", Game.enemies[i].type);
+            Game.enemies[i].sprite = al_load_bitmap(Game.enemies[i].spriteName);
             break;
         }
     }
@@ -1310,7 +1315,38 @@ void draw_board(int board[MAXFILS][MAXCOLS]){
 
 void draw_enemy(enemigo *enemy)
 {
-    al_draw_filled_rectangle(enemy->position.col-enemy->box.leftBox - Game.mapColStart, enemy->position.row-enemy->box.upBox  - Game.mapRowStart, enemy->position.col+enemy->box.rightBox -Game.mapColStart, enemy->position.row+enemy->box.bottomBox - Game.mapRowStart, color_purple1);
+    int spriteWidht = al_get_bitmap_width(enemy->sprite)/9;
+    int spriteHeight = al_get_bitmap_height(enemy->sprite)/4;
+    int spritecol;
+
+    switch (enemy->direction)
+    {
+    case 'U':
+        spritecol = 0;
+        break;
+    case 'L':
+        spritecol = 1;
+        break;
+    case 'D':
+        spritecol = 2;
+        break;
+    case 'R':
+        spritecol = 3;
+        break;
+    }
+    if(al_get_timer_count(timer)%5 == 0)
+    {
+        if(enemy->movement)
+            enemy->spriteFil = (enemy->spriteFil + 1)%9;
+        else
+            enemy->spriteFil = 0;
+    }
+
+    /* al_draw_filled_rectangle(enemy->position.col-enemy->box.leftBox - Game.mapColStart, enemy->position.row-enemy->box.upBox  - Game.mapRowStart, enemy->position.col+enemy->box.rightBox -Game.mapColStart, enemy->position.row+enemy->box.bottomBox - Game.mapRowStart, color_purple1); */
+
+    al_draw_bitmap_region(enemy->sprite, (spriteWidht*enemy->spriteFil),(spriteHeight*spritecol),spriteWidht,spriteHeight, enemy->position.col-(spriteWidht/2) - Game.mapColStart , enemy->position.row-(spriteHeight/2) - Game.mapRowStart, 0);
+
+    return;
 }
 
 /*Partes*/
@@ -1596,6 +1632,10 @@ int game(int board[MAXFILS][MAXCOLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT 
 
     for(i=0; i<ALLEGRO_KEY_MAX; i++) //Se "levantan" todas las teclas
         keys[i] = false;
+
+    for(int i=0; i<Game.totalEnemies; i++) //Eliminando birmaps de enemigos
+        al_destroy_bitmap(Game.enemies[i].sprite);
+
     if(win)
     {
         Game.score = al_get_timer_count(timer);
