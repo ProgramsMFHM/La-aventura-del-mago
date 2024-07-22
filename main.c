@@ -6,7 +6,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include<time.h>
+#include <time.h>
+#include <math.h>
 
 #define lado 64
 #define windowNfil 10
@@ -61,7 +62,9 @@ typedef struct _personaje personaje;
 struct _enemigo {
     square position;
     square boardPlace;
+    square colisionSquare;
     char direction; // U, D, L, R
+    char Olddirection; // U, D, L, R
     hitBox box;
     int velocity;
     int type;
@@ -127,6 +130,9 @@ int manageEnemy(int board[MAXFILS][MAXCOLS], enemigo *enemy);
 int getBoard(int board[MAXFILS][MAXCOLS], char numero[3]);
 int colision(int board[MAXFILS][MAXCOLS], square colisionsquare);
 bool manageObjects(int board[MAXFILS][MAXCOLS]);
+char doomieMovement(enemigo enemy);
+char bestToPnjMovement(int board[MAXFILS][MAXCOLS], enemigo enemy ,personaje pnj);
+
 //Funciones gráficas
 void draw_boardRectangle(int fila, int columna, ALLEGRO_COLOR color);
 void draw_pnj(personaje *pnj, ALLEGRO_BITMAP *image);
@@ -416,14 +422,26 @@ int moveEnemy(int board[MAXFILS][MAXCOLS], enemigo *enemy)
             enemy->position.row = 1 + enemy->box.upBox;
             return 1;
         }
-        else if(
-            //Evaluamos si la casilla de destino es un obstaculo, evaluando los bordes superiors del personaje para generar colision.
-            (board[defineSquare(topEdge , newcol).row][enemy->boardPlace.col]>40)
-            || (board[defineSquare(topEdge , newcol).row][defineSquare(topEdge , newcol-enemy->box.leftBox).col]>40)
-            || (board[defineSquare(topEdge , newcol).row][defineSquare(topEdge , newcol+enemy->box.rightBox).col]>40)
-            )
+        //Evaluamos si la casilla de destino es un obstaculo, evaluando los bordes superiors del personaje para generar colision.
+        else if(board[defineSquare(topEdge , newcol).row][enemy->boardPlace.col]>40)
         {
             enemy->position.row = (lado * (defineSquare(topEdge,newcol).row+1)) + enemy->box.upBox; //Se agrega un +1 al defineSquare porque necesitamos el borde inferior de la casilla de colision
+            enemy->colisionSquare.row = defineSquare(topEdge , newcol).row;
+            enemy->colisionSquare.col = enemy->boardPlace.col;
+            return 1;
+        }
+        else if(board[defineSquare(topEdge , newcol).row][defineSquare(topEdge , newcol-enemy->box.leftBox).col]>40)
+        {
+            enemy->position.row = (lado * (defineSquare(topEdge,newcol).row+1)) + enemy->box.upBox; //Se agrega un +1 al defineSquare porque necesitamos el borde inferior de la casilla de colision
+            enemy->colisionSquare.row = defineSquare(topEdge , newcol).row;
+            enemy->colisionSquare.col = defineSquare(topEdge , newcol-enemy->box.leftBox).col;
+            return 1;
+        }
+        else if(board[defineSquare(topEdge , newcol).row][defineSquare(topEdge , newcol+enemy->box.rightBox).col]>40)
+        {
+            enemy->position.row = (lado * (defineSquare(topEdge,newcol).row+1)) + enemy->box.upBox; //Se agrega un +1 al defineSquare porque necesitamos el borde inferior de la casilla de colision
+            enemy->colisionSquare.row = defineSquare(topEdge , newcol).row;
+            enemy->colisionSquare.col = defineSquare(topEdge , newcol+enemy->box.rightBox).col;
             return 1;
         }
         else
@@ -437,14 +455,26 @@ int moveEnemy(int board[MAXFILS][MAXCOLS], enemigo *enemy)
             enemy->position.row = (lado*Game.gameRows) - enemy->box.bottomBox-1;
             return 1;
         }
-        else if(
-            //Evaluamos si la casilla de destino es un obstaculo, evaluando los bordes inferiores del personaje para generar colision.
-            (board[defineSquare(bottomEdge , newcol).row][enemy->boardPlace.col]>40)
-            || (board[defineSquare(bottomEdge , newcol).row][defineSquare(bottomEdge , newcol-enemy->box.leftBox).col]>40)
-            || (board[defineSquare(bottomEdge , newcol).row][defineSquare(bottomEdge , newcol+enemy->box.rightBox).col]>40)
-            )
+        //Evaluamos si la casilla de destino es un obstaculo, evaluando los bordes inferiores del personaje para generar colision.
+        else if(board[defineSquare(bottomEdge , newcol).row][enemy->boardPlace.col]>40)
         {
             enemy->position.row = (lado * (defineSquare(bottomEdge,newcol).row)) - enemy->box.bottomBox - 1;
+            enemy->colisionSquare.row = defineSquare(bottomEdge , newcol).row;
+            enemy->colisionSquare.col = enemy->boardPlace.col;
+            return 1;
+        }
+        else if(board[defineSquare(bottomEdge , newcol).row][defineSquare(bottomEdge , newcol-enemy->box.leftBox).col]>40)
+        {
+            enemy->position.row = (lado * (defineSquare(bottomEdge,newcol).row)) - enemy->box.bottomBox - 1;
+            enemy->colisionSquare.row = defineSquare(bottomEdge , newcol).row;
+            enemy->colisionSquare.col = defineSquare(bottomEdge , newcol-enemy->box.leftBox).col;
+            return 1;
+        }
+        else if(board[defineSquare(bottomEdge , newcol).row][defineSquare(bottomEdge , newcol+enemy->box.rightBox).col]>40)
+        {
+            enemy->position.row = (lado * (defineSquare(bottomEdge,newcol).row)) - enemy->box.bottomBox - 1;
+            enemy->colisionSquare.row = defineSquare(bottomEdge , newcol).row;
+            enemy->colisionSquare.col = defineSquare(bottomEdge , newcol+enemy->box.rightBox).col;
             return 1;
         }
         else
@@ -458,14 +488,26 @@ int moveEnemy(int board[MAXFILS][MAXCOLS], enemigo *enemy)
             enemy->position.col = 1 + enemy->box.leftBox;
             return 1;
         }
-        else if(
-            //Evaluamos si la casilla de destino es un obstaculo, evaluando los bordes izquierdos del personaje para generar colision.
-            (board[enemy->boardPlace.row][defineSquare(mewrow , leftEdge).col]>40)
-            || (board[defineSquare(mewrow-enemy->box.upBox , leftEdge).row][defineSquare(mewrow , leftEdge).col]>40)
-            || (board[defineSquare(mewrow+enemy->box.bottomBox , leftEdge).row][defineSquare(mewrow , leftEdge).col]>40)
-            )
+        //Evaluamos si la casilla de destino es un obstaculo, evaluando los bordes inferiores del personaje para generar colision.
+        else if(board[enemy->boardPlace.row][defineSquare(mewrow , leftEdge).col]>40)
         {
             enemy->position.col = (lado * (defineSquare(mewrow , leftEdge).col+1)) + enemy->box.leftBox; //Se agrega un +1 al defineSquare porque necesitamos el borde derecho de la casilla de colision
+            enemy->colisionSquare.row = enemy->boardPlace.row;
+            enemy->colisionSquare.col = defineSquare(mewrow , leftEdge).col;
+            return 1;
+        }
+        else if(board[defineSquare(mewrow-enemy->box.upBox , leftEdge).row][defineSquare(mewrow , leftEdge).col]>40)
+        {
+            enemy->position.col = (lado * (defineSquare(mewrow , leftEdge).col+1)) + enemy->box.leftBox; //Se agrega un +1 al defineSquare porque necesitamos el borde derecho de la casilla de colision
+            enemy->colisionSquare.row = defineSquare(mewrow-enemy->box.upBox , leftEdge).row;
+            enemy->colisionSquare.col = defineSquare(mewrow , leftEdge).col;
+            return 1;
+        }
+        else if(board[defineSquare(mewrow+enemy->box.bottomBox , leftEdge).row][defineSquare(mewrow , leftEdge).col]>40)
+        {
+            enemy->position.col = (lado * (defineSquare(mewrow , leftEdge).col+1)) + enemy->box.leftBox; //Se agrega un +1 al defineSquare porque necesitamos el borde derecho de la casilla de colision
+            enemy->colisionSquare.row = defineSquare(mewrow+enemy->box.bottomBox , leftEdge).row;
+            enemy->colisionSquare.col = defineSquare(mewrow , leftEdge).col;
             return 1;
         }
         else
@@ -479,14 +521,26 @@ int moveEnemy(int board[MAXFILS][MAXCOLS], enemigo *enemy)
             enemy->position.col = (lado*Game.gameCols) - enemy->box.rightBox - 1;
             return 1;
         }
-        else if(
-            //Evaluamos si la casilla de destino es un obstaculo, evaluando los bordes derechos del personaje para generar colision.
-            (board[enemy->boardPlace.row][defineSquare(mewrow , rightEdge).col]>40)
-            || (board[defineSquare(mewrow-enemy->box.upBox , rightEdge).row][defineSquare(mewrow , rightEdge).col]>40)
-            || (board[defineSquare(mewrow+enemy->box.bottomBox , rightEdge).row][defineSquare(mewrow , rightEdge).col]>40)
-            )
+        //Evaluamos si la casilla de destino es un obstaculo, evaluando los bordes inferiores del personaje para generar colision.
+        else if(board[enemy->boardPlace.row][defineSquare(mewrow , rightEdge).col]>40)
         {
             enemy->position.col = (lado * (defineSquare(mewrow , rightEdge).col)) - enemy->box.rightBox - 1;
+            enemy->colisionSquare.row = enemy->boardPlace.row;
+            enemy->colisionSquare.col = defineSquare(mewrow , rightEdge).col;
+            return 1;
+        }
+        else if(board[defineSquare(mewrow-enemy->box.upBox , rightEdge).row][defineSquare(mewrow , rightEdge).col]>40)
+        {
+            enemy->position.col = (lado * (defineSquare(mewrow , rightEdge).col)) - enemy->box.rightBox - 1;
+            enemy->colisionSquare.row = defineSquare(mewrow-enemy->box.upBox , rightEdge).row;
+            enemy->colisionSquare.col = defineSquare(mewrow , rightEdge).col;
+            return 1;
+        }
+        else if(board[defineSquare(mewrow+enemy->box.bottomBox , rightEdge).row][defineSquare(mewrow , rightEdge).col]>40)
+        {
+            enemy->position.col = (lado * (defineSquare(mewrow , rightEdge).col)) - enemy->box.rightBox - 1;
+            enemy->colisionSquare.row = defineSquare(mewrow+enemy->box.bottomBox , rightEdge).row;
+            enemy->colisionSquare.col = defineSquare(mewrow , rightEdge).col;
             return 1;
         }
         else
@@ -859,8 +913,7 @@ void manageIce(int board[MAXFILS][MAXCOLS], hielo *ice)
 
 int manageEnemy(int board[MAXFILS][MAXCOLS], enemigo *enemy)
 {
-    int answerMove, newDirection, oldDirection;
-
+    char answerDirection;
     int respuesta;
 
     switch (enemy->type)
@@ -871,29 +924,33 @@ int manageEnemy(int board[MAXFILS][MAXCOLS], enemigo *enemy)
         switch (respuesta)
         {
         case 1:
-            if(enemy->direction == 'U')
-                oldDirection = 0;
-            else if(enemy->direction == 'D')
-                oldDirection = 1;
-            else if(enemy->direction == 'L')
-                oldDirection = 2;
-            else if(enemy->direction == 'R')
-                oldDirection = 3;
+            enemy->direction = doomieMovement(*enemy);
+            break;
+        case 3: //Choque con el jugador
+            return 1;
+            break;
+        }
+        break;
+    case 1:
+        //Decidimos la dirección del movimiento del personaje
+        if((al_get_timer_count(timer)%5) == 0)
+        {
+            answerDirection = bestToPnjMovement(board, *enemy, player1);
 
-            srand(al_get_timer_count(timer)+time(0));
-            do
+            if(answerDirection != enemy->direction)
             {
-                newDirection = rand()%4;
-            }while(newDirection == oldDirection);
+                enemy->Olddirection = enemy->direction;
+                enemy->direction = answerDirection;
+            }
+        }
 
-            if(newDirection == 0)
-                enemy->direction = 'U';
-            else if(newDirection == 1)
-                enemy->direction = 'D';
-            else if(newDirection == 2)
-                enemy->direction = 'L';
-            else if(newDirection == 3)
-                enemy->direction = 'R';
+        //Movemos al enemigo en la direccion que tiene y vemos que ocurre.
+        respuesta  = moveEnemy(board, enemy);
+        switch (respuesta)
+        {
+        case 1: //Choque con bloque
+            enemy->direction = enemy->Olddirection;
+            moveEnemy(board, enemy);
             break;
         case 3: //Choque con el jugador
             return 1;
@@ -1038,6 +1095,15 @@ int getBoard(int board[MAXFILS][MAXCOLS], char numero[3])
             sprintf(Game.enemies[i].spriteName, "./src/sprites/enemies/enemy%d.png", Game.enemies[i].type);
             Game.enemies[i].sprite = al_load_bitmap(Game.enemies[i].spriteName);
             break;
+        case 1:
+            Game.enemies[i].velocity=3;
+            Game.enemies[i].box.upBox=20;
+            Game.enemies[i].box.bottomBox=20;
+            Game.enemies[i].box.leftBox=20;
+            Game.enemies[i].box.rightBox=20;
+            sprintf(Game.enemies[i].spriteName, "./src/sprites/enemies/enemy%d.png", Game.enemies[i].type);
+            Game.enemies[i].sprite = al_load_bitmap(Game.enemies[i].spriteName);
+            break;
         }
     }
 
@@ -1163,6 +1229,112 @@ bool manageObjects(int board[MAXFILS][MAXCOLS])
     return 0;
 }
 
+char doomieMovement(enemigo enemy)
+{
+    int newDirection, oldDirection;
+    if(enemy.direction == 'U')
+        oldDirection = 0;
+    else if(enemy.direction == 'D')
+        oldDirection = 1;
+    else if(enemy.direction == 'L')
+        oldDirection = 2;
+    else if(enemy.direction == 'R')
+        oldDirection = 3;
+
+    srand(al_get_timer_count(timer)+time(0));
+    do
+    {
+        newDirection = rand()%4;
+    }while(newDirection == oldDirection);
+
+    if(newDirection == 0)
+        return 'U';
+    else if(newDirection == 1)
+        return 'D';
+    else if(newDirection == 2)
+        return 'L';
+    else if(newDirection == 3)
+        return 'R';
+}
+
+char bestToPnjMovement(int board[MAXFILS][MAXCOLS], enemigo enemy , personaje pnj)
+{
+    char bestDirection = 'R';
+    double minDistance = 100;
+    struct movementDir {
+        int vertical;
+        int horizontal;
+        bool obstacle;
+        double distanciaEuclidiana;
+    } mDir[5];
+
+    // Posición actual del personaje y enemigo
+    mDir[0].vertical = pnj.boardPlace.row - enemy.boardPlace.row;
+    mDir[0].horizontal = pnj.boardPlace.col - enemy.boardPlace.col;
+    mDir[0].obstacle = false; // La posición actual nunca tiene un obstáculo
+
+    // Arriba
+    if (enemy.boardPlace.row - 1 >= 0) { // Verificar límites del mapa
+        mDir[1].vertical = pnj.boardPlace.row - (enemy.boardPlace.row - 1);
+        mDir[1].horizontal = pnj.boardPlace.col - enemy.boardPlace.col;
+        mDir[1].obstacle = (board[enemy.boardPlace.row - 1][enemy.boardPlace.col] >= 40);
+    } else {
+        mDir[1].obstacle = true;
+    }
+
+    // Abajo
+    if (enemy.boardPlace.row + 1 < Game.gameRows) { // Verificar límites del mapa
+        mDir[2].vertical = pnj.boardPlace.row - (enemy.boardPlace.row + 1);
+        mDir[2].horizontal = pnj.boardPlace.col - enemy.boardPlace.col;
+        mDir[2].obstacle = (board[enemy.boardPlace.row + 1][enemy.boardPlace.col] >= 40);
+    } else {
+        mDir[2].obstacle = true;
+    }
+
+    // Izquierda
+    if (enemy.boardPlace.col - 1 >= 0) { // Verificar límites del mapa
+        mDir[3].vertical = pnj.boardPlace.row - enemy.boardPlace.row;
+        mDir[3].horizontal = pnj.boardPlace.col - (enemy.boardPlace.col - 1);
+        mDir[3].obstacle = (board[enemy.boardPlace.row][enemy.boardPlace.col - 1] >= 40);
+    } else {
+        mDir[3].obstacle = true;
+    }
+
+    // Derecha
+    if (enemy.boardPlace.col + 1 < Game.gameCols) { // Verificar límites del mapa
+        mDir[4].vertical = pnj.boardPlace.row - enemy.boardPlace.row;
+        mDir[4].horizontal = pnj.boardPlace.col - (enemy.boardPlace.col + 1);
+        mDir[4].obstacle = (board[enemy.boardPlace.row][enemy.boardPlace.col + 1] >= 40);
+    } else {
+        mDir[4].obstacle = true;
+    }
+
+    // Calculo de todas las distancias
+    for (int i = 0; i < 5; i++) {
+        mDir[i].distanciaEuclidiana = sqrt(pow(mDir[i].vertical, 2) + pow(mDir[i].horizontal, 2));
+    }
+
+    // Selección de la mejor dirección
+    if (!mDir[1].obstacle && mDir[1].distanciaEuclidiana < minDistance && (enemy.direction != 'D')) {
+        minDistance = mDir[1].distanciaEuclidiana;
+        bestDirection = 'U'; // Arriba
+    }
+    if (!mDir[2].obstacle && mDir[2].distanciaEuclidiana < minDistance && (enemy.direction != 'U')) {
+        minDistance = mDir[2].distanciaEuclidiana;
+        bestDirection = 'D'; // Abajo
+    }
+    if (!mDir[3].obstacle && mDir[3].distanciaEuclidiana < minDistance && (enemy.direction != 'R')) {
+        minDistance = mDir[3].distanciaEuclidiana;
+        bestDirection = 'L'; // Izquierda
+    }
+    if (!mDir[4].obstacle && mDir[4].distanciaEuclidiana < minDistance && (enemy.direction != 'L')) {
+        minDistance = mDir[4].distanciaEuclidiana;
+        bestDirection = 'R'; // Derecha
+    }
+
+    return bestDirection;
+}
+
 // FUnciones gráficas
 void draw_boardRectangle(int fila, int columna, ALLEGRO_COLOR color){
     al_draw_filled_rectangle((columna * lado), (fila * lado), ((columna + 1) * lado), ((fila + 1) * lado), color);
@@ -1269,8 +1441,8 @@ void draw_board(int board[MAXFILS][MAXCOLS]){
             /* if(board[i][j]==1)
             {
                 draw_boardRectangle(i-Game.startSquare.row,j-Game.startSquare.col,color_blue);
-            }
-            if(board[i][j]==2)
+            }*/
+            /* if(board[i][j]==3)
             {
                 draw_boardRectangle(i-Game.startSquare.row,j-Game.startSquare.col,color_green3);
             } */
@@ -1315,8 +1487,8 @@ void draw_board(int board[MAXFILS][MAXCOLS]){
 
 void draw_enemy(enemigo *enemy)
 {
-    int spriteWidht = al_get_bitmap_width(enemy->sprite)/9;
-    int spriteHeight = al_get_bitmap_height(enemy->sprite)/4;
+    int spriteWidht = 64;
+    int spriteHeight = 64;
     int spritecol;
 
     switch (enemy->direction)
