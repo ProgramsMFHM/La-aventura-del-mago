@@ -19,7 +19,7 @@
 #define font_size 20
 #define FPS 24
 #define NORMAL_OBJECTS_TYPE 10
-#define ENEMY_TYPES 2
+#define ENEMY_TYPES 3
 #define objectTimerCount 4
 
 struct _hitBox{
@@ -53,7 +53,7 @@ struct _personaje {
     hitBox box;
     int velocity;
     bool movement;
-    int spriteFil;
+    int spritecol;
     int alcance;
     int powerType;
 } player1;
@@ -72,9 +72,11 @@ struct _enemigo {
     bool movement;
     ALLEGRO_BITMAP *sprite;
     char spriteName[40];
-    int spriteFil;
+    int spritecol;
+    int numSpriteFrames; //Cambian por estados
     int alcance;
     int powerType;
+    int powerCount;
 };
 typedef struct _enemigo enemigo;
 
@@ -131,6 +133,7 @@ int getBoard(int board[MAXFILS][MAXCOLS], char numero[3]);
 int colision(int board[MAXFILS][MAXCOLS], square colisionsquare);
 bool manageObjects(int board[MAXFILS][MAXCOLS]);
 char doomieMovement(enemigo enemy);
+char toPnjMovement(int board[MAXFILS][MAXCOLS], enemigo enemy , personaje pnj);
 char bestToPnjMovement(int board[MAXFILS][MAXCOLS], enemigo enemy ,personaje pnj);
 
 //Funciones gráficas
@@ -914,14 +917,12 @@ void manageIce(int board[MAXFILS][MAXCOLS], hielo *ice)
 int manageEnemy(int board[MAXFILS][MAXCOLS], enemigo *enemy)
 {
     char answerDirection;
-    int respuesta;
 
     switch (enemy->type)
     {
     case 0:
         //Movemos al enemigo en la direccion que tiene y vemos que ocurre.
-        respuesta  = moveEnemy(board, enemy);
-        switch (respuesta)
+        switch (moveEnemy(board, enemy))
         {
         case 1:
             enemy->direction = doomieMovement(*enemy);
@@ -945,8 +946,7 @@ int manageEnemy(int board[MAXFILS][MAXCOLS], enemigo *enemy)
         }
 
         //Movemos al enemigo en la direccion que tiene y vemos que ocurre.
-        respuesta  = moveEnemy(board, enemy);
-        switch (respuesta)
+        switch (moveEnemy(board, enemy))
         {
         case 1: //Choque con bloque
             enemy->direction = enemy->Olddirection;
@@ -955,6 +955,45 @@ int manageEnemy(int board[MAXFILS][MAXCOLS], enemigo *enemy)
         case 3: //Choque con el jugador
             return 1;
             break;
+        }
+        break;
+    case 2:
+        if(enemy->state == 0)
+        {
+            //Decidimos la dirección del movimiento del personaje
+            enemy->direction = toPnjMovement(board, *enemy, player1);
+
+            //Movemos al enemigo en la direccion que tiene y vemos que ocurre.
+            switch (moveEnemy(board, enemy))
+            {
+            case 1: //Choque con bloque
+                enemy->state = 1;
+                enemy->numSpriteFrames = 4;
+                enemy->spritecol = 0;
+                enemy->powerCount = 4;
+                break;
+            case 3: //Choque con el jugador
+                return 1;
+                break;
+            }
+        }
+        else if(enemy->state == 1)
+        {
+            if(enemy->powerCount!=1)
+            {
+                if((al_get_timer_count(timer)%20) == 0)
+                {
+                    board[enemy->colisionSquare.row][enemy->colisionSquare.col]--;
+                    enemy->powerCount--;
+                }
+            }
+            else
+            {
+                enemy->state = 0;
+                enemy->numSpriteFrames = 9;
+                enemy->spritecol = 0;
+                board[enemy->colisionSquare.row][enemy->colisionSquare.col] = 0;
+            }
         }
         break;
     }
@@ -1032,7 +1071,7 @@ int getBoard(int board[MAXFILS][MAXCOLS], char numero[3])
             Game.enemies[enemiesCont].position.col= j*lado + lado/2;
             Game.enemies[enemiesCont].movement=1;
             Game.enemies[enemiesCont].type = board[i][j]-2;
-            Game.enemies[enemiesCont].spriteFil = 0;
+            Game.enemies[enemiesCont].spritecol = 0;
             enemiesCont++;
         }
     }
@@ -1086,21 +1125,37 @@ int getBoard(int board[MAXFILS][MAXCOLS], char numero[3])
 
         switch (Game.enemies[i].type)
         {
-        case 0:
+        case 0: //Enemigo tonto
             Game.enemies[i].velocity=3;
             Game.enemies[i].box.upBox=20;
             Game.enemies[i].box.bottomBox=20;
             Game.enemies[i].box.leftBox=20;
             Game.enemies[i].box.rightBox=20;
+            Game.enemies[i].state=0;
+            Game.enemies[i].numSpriteFrames=9;
             sprintf(Game.enemies[i].spriteName, "./src/sprites/enemies/enemy%d.png", Game.enemies[i].type);
             Game.enemies[i].sprite = al_load_bitmap(Game.enemies[i].spriteName);
             break;
-        case 1:
+        case 1: // Enemigo que te persigue inteligentemente
             Game.enemies[i].velocity=3;
             Game.enemies[i].box.upBox=20;
             Game.enemies[i].box.bottomBox=20;
             Game.enemies[i].box.leftBox=20;
             Game.enemies[i].box.rightBox=20;
+            Game.enemies[i].state=0;
+            Game.enemies[i].numSpriteFrames=9;
+            sprintf(Game.enemies[i].spriteName, "./src/sprites/enemies/enemy%d.png", Game.enemies[i].type);
+            Game.enemies[i].sprite = al_load_bitmap(Game.enemies[i].spriteName);
+            break;
+        case 2: // Enemigo que te persigue, si encuentra un obstáculo rompe el bloque de destino
+            Game.enemies[i].velocity=3;
+            Game.enemies[i].box.upBox=20;
+            Game.enemies[i].box.bottomBox=20;
+            Game.enemies[i].box.leftBox=20;
+            Game.enemies[i].box.rightBox=20;
+            Game.enemies[i].state=0;
+            Game.enemies[i].numSpriteFrames=9;
+            Game.enemies[i].direction = toPnjMovement(board, Game.enemies[i], player1);
             sprintf(Game.enemies[i].spriteName, "./src/sprites/enemies/enemy%d.png", Game.enemies[i].type);
             Game.enemies[i].sprite = al_load_bitmap(Game.enemies[i].spriteName);
             break;
@@ -1257,9 +1312,36 @@ char doomieMovement(enemigo enemy)
         return 'R';
 }
 
+char toPnjMovement(int board[MAXFILS][MAXCOLS], enemigo enemy, personaje pnj)
+{
+    char bestDirection = enemy.direction;
+    int vertical, horizontal;
+
+    // Posición actual del personaje y enemigo
+    vertical = pnj.boardPlace.row - enemy.boardPlace.row;
+    horizontal = pnj.boardPlace.col - enemy.boardPlace.col;
+
+    if(fabs(vertical) > fabs(horizontal))
+    {
+        if(vertical > 0)
+            return 'D';
+        else
+            return 'U';
+    }
+    else
+    {
+        if(horizontal > 0)
+            return 'R';
+        else
+            return 'L';
+    }
+
+    return bestDirection;
+}
+
 char bestToPnjMovement(int board[MAXFILS][MAXCOLS], enemigo enemy , personaje pnj)
 {
-    char bestDirection = 'R';
+    char bestDirection = enemy.direction;
     double minDistance = 100;
     struct movementDir {
         int vertical;
@@ -1343,34 +1425,34 @@ void draw_boardRectangle(int fila, int columna, ALLEGRO_COLOR color){
 void draw_pnj(personaje *pnj, ALLEGRO_BITMAP *image){
     int spriteWidht = al_get_bitmap_width(image)/4;
     int spriteHeight = al_get_bitmap_height(image)/4;
-    int spritecol;
+    int spritefil;
 
     switch (pnj->direction)
     {
     case 'D':
-        spritecol = 0;
+        spritefil = 0;
         break;
     case 'L':
-        spritecol = 1;
+        spritefil = 1;
         break;
     case 'R':
-        spritecol = 2;
+        spritefil = 2;
         break;
     case 'U':
-        spritecol = 3;
+        spritefil = 3;
         break;
     }
     if(al_get_timer_count(timer)%5 == 0)
     {
         if(pnj->movement)
-            pnj->spriteFil = (pnj->spriteFil + 1)%4;
+            pnj->spritecol = (pnj->spritecol + 1)%4;
         else
-            pnj->spriteFil = 0;
+            pnj->spritecol = 0;
     }
 
     //al_draw_filled_rectangle(pnj->position.col-pnj->box.leftBox - Game.mapColStart, pnj->position.row-pnj->box.upBox  - Game.mapRowStart, pnj->position.col+pnj->box.rightBox -Game.mapColStart, pnj->position.row+pnj->box.bottomBox - Game.mapRowStart, color_purple1);
 
-    al_draw_bitmap_region(image, (spriteWidht*pnj->spriteFil),(spriteHeight*spritecol),spriteWidht,spriteHeight, pnj->position.col-(spriteWidht/2) - Game.mapColStart , pnj->position.row-(spriteHeight/2) - Game.mapRowStart, 0);
+    al_draw_bitmap_region(image, (spriteWidht*pnj->spritecol),(spriteHeight*spritefil),spriteWidht,spriteHeight, pnj->position.col-(spriteWidht/2) - Game.mapColStart , pnj->position.row-(spriteHeight/2) - Game.mapRowStart, 0);
     return;
 }
 
@@ -1489,34 +1571,34 @@ void draw_enemy(enemigo *enemy)
 {
     int spriteWidht = 64;
     int spriteHeight = 64;
-    int spritecol;
+    int spritefil;
 
     switch (enemy->direction)
     {
     case 'U':
-        spritecol = 0;
+        spritefil = 0+4*(enemy->state); //Al cambiar el estado cambia la fila del spritesheet
         break;
     case 'L':
-        spritecol = 1;
+        spritefil = 1+4*(enemy->state);
         break;
     case 'D':
-        spritecol = 2;
+        spritefil = 2+4*(enemy->state);
         break;
     case 'R':
-        spritecol = 3;
+        spritefil = 3+4*(enemy->state);
         break;
     }
     if(al_get_timer_count(timer)%5 == 0)
     {
         if(enemy->movement)
-            enemy->spriteFil = (enemy->spriteFil + 1)%9;
+            enemy->spritecol = (enemy->spritecol + 1)%enemy->numSpriteFrames;
         else
-            enemy->spriteFil = 0;
+            enemy->spritecol = 0;
     }
 
     /* al_draw_filled_rectangle(enemy->position.col-enemy->box.leftBox - Game.mapColStart, enemy->position.row-enemy->box.upBox  - Game.mapRowStart, enemy->position.col+enemy->box.rightBox -Game.mapColStart, enemy->position.row+enemy->box.bottomBox - Game.mapRowStart, color_purple1); */
 
-    al_draw_bitmap_region(enemy->sprite, (spriteWidht*enemy->spriteFil),(spriteHeight*spritecol),spriteWidht,spriteHeight, enemy->position.col-(spriteWidht/2) - Game.mapColStart , enemy->position.row-(spriteHeight/2) - Game.mapRowStart, 0);
+    al_draw_bitmap_region(enemy->sprite, (spriteWidht*enemy->spritecol),(spriteHeight*spritefil),spriteWidht,spriteHeight, enemy->position.col-(spriteWidht/2) - Game.mapColStart , enemy->position.row-(spriteHeight/2) - Game.mapRowStart, 0);
 
     return;
 }
