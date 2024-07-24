@@ -16,7 +16,7 @@
 #define windowheight lado*windowNfil
 #define MAXFILS 30
 #define MAXCOLS 30
-#define font_size 20
+#define font_size 52
 #define FPS 24
 #define NORMAL_OBJECTS_TYPE 10
 #define ENEMY_TYPES 3
@@ -142,9 +142,12 @@ void draw_pnj(personaje *pnj, ALLEGRO_BITMAP *image);
 void draw_enemy(enemigo *enemy);
 void draw_background(ALLEGRO_BITMAP *bitmap);
 void draw_board(int board[MAXFILS][MAXCOLS]);
+
 /*Partes*/
 int main_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
 int pause_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
+int game_Over(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
+int win_mwnu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
 int game(int board[MAXFILS][MAXCOLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
 
 /*Bitmaps*/
@@ -154,7 +157,7 @@ ALLEGRO_BITMAP *player_bitmap;
 ALLEGRO_BITMAP *rockBitmap;
 ALLEGRO_BITMAP *flowerBitmap;
 
-ALLEGRO_FONT *roboto; /*Fuente*/
+ALLEGRO_FONT *font; /*Fuente*/
 ALLEGRO_TIMER *timer; /*Timer*/
 
 /*Other variables*/
@@ -201,7 +204,7 @@ int main()
     al_install_keyboard(); // Teclado
 
     /*Fuentes*/
-    roboto = al_load_ttf_font("./src/fonts/Roboto/Roboto-Bold.ttf", font_size, 0);
+    font = al_load_ttf_font("./src/fonts/spooky_magic/SpookyMagic.ttf", font_size, 0);
 
     // Inicializando ventana
     ventana = al_create_display(windowWidth , windowheight);
@@ -239,7 +242,7 @@ int main()
     /* Cerrar recursos */
     al_destroy_display(ventana);
     al_destroy_event_queue(event_queue);
-    al_destroy_font(roboto);
+    al_destroy_font(font);
     al_destroy_timer(timer);
     al_destroy_bitmap(player_bitmap);
     al_destroy_bitmap(board_bitmap);
@@ -1742,6 +1745,130 @@ int pause_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *tim
     al_destroy_bitmap(salir_bmap);
 }
 
+int game_Over(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer)
+{
+    al_stop_timer(timer);
+    int i;
+    bool done = false;
+    ALLEGRO_BITMAP *gameOver_bmp = al_load_bitmap("src/gameOver/960x640/gameOver.png");
+    ALLEGRO_BITMAP *gameOver1_bmp = al_load_bitmap("src/gameOver/960x640/gameOver1.png");
+
+    // Capturar la pantalla actual
+    ALLEGRO_BITMAP *screenshot = al_create_bitmap(windowNcol*lado, windowNfil*lado);
+    al_set_target_bitmap(screenshot);
+    al_draw_bitmap(al_get_backbuffer(ventana), 0, 0, 0);
+    al_set_target_backbuffer(al_get_current_display());
+
+    //Dibujo inicial
+    al_draw_bitmap(screenshot,0,0,0);
+    al_draw_filled_rectangle(0,0,al_get_display_width(ventana), al_get_display_height(ventana), al_map_rgba(0,0,0,200));
+    al_draw_bitmap(gameOver_bmp,0,0,0);
+    al_flip_display();
+
+    while (!done)
+    {
+        al_wait_for_event(queue, ev); /*Esperando a que ocurra un evento*/
+
+        if (ev->type == ALLEGRO_EVENT_DISPLAY_CLOSE) /*Si es un cierre de la ventana*/
+        {
+            return -1;
+        }
+        else if(ev->type == ALLEGRO_EVENT_KEY_DOWN)
+        {
+            for(i=0; i<=4; i++)
+            {
+                if(i%2 == 0)
+                {
+                    al_draw_bitmap(screenshot,0,0,0);
+                    al_draw_filled_rectangle(0,0,al_get_display_width(ventana), al_get_display_height(ventana), al_map_rgba(0,0,0,200));
+                    al_draw_bitmap(gameOver1_bmp,0,0,0);
+                    al_flip_display();
+                    al_rest(0.1);
+                }
+                else
+                {
+                    al_draw_bitmap(screenshot,0,0,0);
+                    al_draw_filled_rectangle(0,0,al_get_display_width(ventana), al_get_display_height(ventana), al_map_rgba(0,0,0,200));
+                    al_draw_bitmap(gameOver_bmp,0,0,0);
+                    al_flip_display();
+                    al_rest(0.1);
+                }
+            }
+            al_rest(0.2);
+            return 0;
+        }
+    }
+
+    al_destroy_bitmap(gameOver_bmp);
+    al_destroy_bitmap(gameOver1_bmp);
+}
+
+int win_mwnu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer)
+{
+    al_stop_timer(timer);
+    int i;
+    char scoreText[5];
+    bool done = false;
+    ALLEGRO_BITMAP *win_bmp = al_load_bitmap("src/win//960x640/win.png");
+    ALLEGRO_BITMAP *win0_bmp = al_load_bitmap("src/win/960x640/win0.png");
+
+    // Capturar la pantalla actual
+    ALLEGRO_BITMAP *screenshot = al_create_bitmap(windowNcol*lado, windowNfil*lado);
+    al_set_target_bitmap(screenshot);
+    al_draw_bitmap(al_get_backbuffer(ventana), 0, 0, 0);
+    al_set_target_backbuffer(al_get_current_display());
+
+    //Dibujo inicial
+    for(i=0; i<=Game.score; i++)
+    {
+        sprintf(scoreText, "%04d", i);
+        al_draw_bitmap(screenshot,0,0,0);
+        al_draw_filled_rectangle(0,0,al_get_display_width(ventana), al_get_display_height(ventana), al_map_rgba(0,0,0,200));
+        al_draw_bitmap(win_bmp,0,0,0);
+        al_draw_text(font,color_white, 275, 475,ALLEGRO_ALIGN_LEFT,scoreText);
+        al_flip_display();
+    }
+
+    while (!done)
+    {
+        al_wait_for_event(queue, ev); /*Esperando a que ocurra un evento*/
+
+        if (ev->type == ALLEGRO_EVENT_DISPLAY_CLOSE) /*Si es un cierre de la ventana*/
+        {
+            return -1;
+        }
+        else if(ev->type == ALLEGRO_EVENT_KEY_DOWN)
+        {
+            for(i=0; i<=4; i++)
+            {
+                if(i%2 == 0)
+                {
+                    al_draw_bitmap(screenshot,0,0,0);
+                    al_draw_filled_rectangle(0,0,al_get_display_width(ventana), al_get_display_height(ventana), al_map_rgba(0,0,0,200));
+                    al_draw_bitmap(win0_bmp,0,0,0);
+                    al_draw_text(font,color_white, 275, 475,ALLEGRO_ALIGN_LEFT,scoreText);
+                    al_flip_display();
+                    al_rest(0.1);
+                }
+                else
+                {
+                    al_draw_bitmap(screenshot,0,0,0);
+                    al_draw_filled_rectangle(0,0,al_get_display_width(ventana), al_get_display_height(ventana), al_map_rgba(0,0,0,200));
+                    al_draw_bitmap(win_bmp,0,0,0);
+                    al_draw_text(font,color_white, 275, 475,ALLEGRO_ALIGN_LEFT,scoreText);
+                    al_flip_display();
+                    al_rest(0.1);
+                }
+            }
+            al_rest(0.2);
+            return 0;
+        }
+    }
+
+    al_destroy_bitmap(win_bmp);
+    al_destroy_bitmap(win0_bmp);
+}
+
 int game(int board[MAXFILS][MAXCOLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer)
 {
     bool done = false;
@@ -1892,12 +2019,14 @@ int game(int board[MAXFILS][MAXCOLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT 
 
     if(win)
     {
-        Game.score = al_get_timer_count(timer);
-        printf("Score: %d\n\n", Game.score);
+        Game.score = (-pow((al_get_timer_count(timer) / (float) FPS),2) / 10) + 10000;
+        win_mwnu(queue,ev, timer);
+        return 0;
     }
     else
     {
-        printf("Has perdido\n");
+        game_Over(queue, ev, timer);
+        return 1;
     }
     return 0;
 }
