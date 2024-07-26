@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <dirent.h>
 #include <time.h>
 #include <math.h>
 
@@ -115,6 +116,7 @@ typedef struct _gameInfo gameInfo;
 /*Colores*/
 ALLEGRO_COLOR color_black;
 ALLEGRO_COLOR color_white;
+ALLEGRO_COLOR color_gray;
 ALLEGRO_COLOR color_blue;
 ALLEGRO_COLOR color_purple1;
 ALLEGRO_COLOR color_green1;
@@ -135,6 +137,7 @@ bool manageObjects(int board[MAXFILS][MAXCOLS]);
 char doomieMovement(enemigo enemy);
 char toPnjMovement(int board[MAXFILS][MAXCOLS], enemigo enemy , personaje pnj);
 char bestToPnjMovement(int board[MAXFILS][MAXCOLS], enemigo enemy ,personaje pnj);
+int count_files_in_directory(const char *path);
 
 //Funciones gráficas
 void draw_boardRectangle(int fila, int columna, ALLEGRO_COLOR color);
@@ -148,7 +151,8 @@ int main_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *time
 int pause_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
 int game_Over(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
 int win_mwnu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
-int game(int board[MAXFILS][MAXCOLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
+int level_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
+int game(int board[MAXFILS][MAXCOLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer, int level);
 
 /*Bitmaps*/
 ALLEGRO_DISPLAY *ventana;
@@ -165,11 +169,12 @@ bool keys[ALLEGRO_KEY_MAX] = { false }; /* Inicializa todas las teclas como no p
 
 int main()
 {
-    int i, j, num=1;
+    int i, j, num=1, level;
 
     // Inicializción colores
     color_black = al_map_rgb(0,0,0);
     color_white = al_map_rgb(255,255,255);
+    color_gray = al_map_rgb(150,150,150);
     color_blue = al_map_rgb(100,100,255);
     color_purple1 = al_map_rgb(87, 35, 100);
     color_green1 = al_map_rgb(8, 28, 21);
@@ -225,10 +230,14 @@ int main()
         switch (main_menu(event_queue, &ev, timer))
         {
             case 0: //jugar
-                if(game(board, event_queue, &ev, timer) == -1)
-                    done =true;
-                free(Game.normalObjects);
-                free(Game.enemies);
+                level = level_menu(event_queue,&ev,timer);
+                if(level>0)
+                {
+                    if(game(board, event_queue, &ev, timer, level) == -1)
+                        done =true;
+                    free(Game.normalObjects);
+                    free(Game.enemies);
+                }
                 break;
             case 1: //Score
                 printf("SCORE\n");
@@ -1010,7 +1019,7 @@ int getBoard(int board[MAXFILS][MAXCOLS], char numero[3])
     Game.totalNormalObjects=0;
     Game.totalEnemies = 0;
     int foundedObjectType;
-    char filename[12] = "level";
+    char filename[21] = "levels/level";
     strcat(filename, numero);
     strcat(filename, ".txt");
 
@@ -1418,6 +1427,26 @@ char bestToPnjMovement(int board[MAXFILS][MAXCOLS], enemigo enemy , personaje pn
     }
 
     return bestDirection;
+}
+
+int count_files_in_directory(const char *path) {
+    int file_count = 0;
+    DIR *dir = opendir(path);
+    struct dirent *entry;
+
+    if (dir == NULL) {
+        perror("opendir");
+        return -1;
+    }
+
+    while ((entry = readdir(dir)) != NULL) {
+        if (entry->d_type == DT_REG) { // DT_REG indica un archivo regular
+            file_count++;
+        }
+    }
+
+    closedir(dir);
+    return file_count;
 }
 
 // FUnciones gráficas
@@ -1869,12 +1898,159 @@ int win_mwnu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer
     al_destroy_bitmap(win0_bmp);
 }
 
-int game(int board[MAXFILS][MAXCOLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer)
+int level_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer)
+{
+    ALLEGRO_BITMAP *level_bmap = al_load_bitmap("src/LevelSelection/levelSelection.png");
+    ALLEGRO_BITMAP *level0_bmap = al_load_bitmap("src/LevelSelection/levelSelection0.png");
+    ALLEGRO_BITMAP *pergamino_bmap = al_load_bitmap("src/LevelSelection/pergamino.png");
+    ALLEGRO_BITMAP *pergaminoSelected_bmap = al_load_bitmap("src/LevelSelection/pergaminoSelected.png");
+    int i;
+    bool done = false;
+    int pergaminox = (windowWidth*3/10)-(al_get_bitmap_width(pergamino_bmap)/2)-80;
+    int pergaminoy = windowheight*3/8 + 20;
+    int actualLevel = 1;
+    int totalLevels = count_files_in_directory("./levels"); //MAX 8
+    char auxLvl[3]; //Para dibujar números
+
+    //Dibujo iniciañ
+    al_draw_bitmap(level0_bmap,0,0,0);
+    for(i=1; i<=totalLevels; i++)
+    {
+        sprintf(auxLvl, "%02d", i);
+        if( (i%5) != 0)
+        {
+            if(i == actualLevel)
+            {
+                al_draw_bitmap(pergaminoSelected_bmap, pergaminox, pergaminoy, 0);
+                al_draw_text(font, color_white, pergaminox + (al_get_bitmap_width(pergamino_bmap)/2), pergaminoy + (al_get_bitmap_height(pergamino_bmap)/2)-(font_size), ALLEGRO_ALIGN_CENTER, auxLvl);
+            }
+            else
+            {
+                al_draw_bitmap(pergamino_bmap, pergaminox, pergaminoy, 0);
+                al_draw_text(font, color_gray, pergaminox + (al_get_bitmap_width(pergamino_bmap)/2), pergaminoy + (al_get_bitmap_height(pergamino_bmap)/2)-(font_size), ALLEGRO_ALIGN_CENTER, auxLvl);
+            }
+            pergaminox += windowWidth/5;
+        }
+        else
+        {
+            pergaminox = (windowWidth*3/10)-(al_get_bitmap_width(pergamino_bmap)/2)-80;
+            pergaminoy += 20 + windowheight/4;
+            if(i == actualLevel)
+            {
+                al_draw_bitmap(pergaminoSelected_bmap, pergaminox, pergaminoy, 0);
+                al_draw_text(font, color_white, pergaminox + (al_get_bitmap_width(pergamino_bmap)/2), pergaminoy + (al_get_bitmap_height(pergamino_bmap)/2)-(font_size), ALLEGRO_ALIGN_CENTER, auxLvl);
+            }
+            else
+            {
+                al_draw_bitmap(pergamino_bmap, pergaminox, pergaminoy, 0);
+                al_draw_text(font, color_gray, pergaminox + (al_get_bitmap_width(pergamino_bmap)/2), pergaminoy + (al_get_bitmap_height(pergamino_bmap)/2)-(font_size), ALLEGRO_ALIGN_CENTER, auxLvl);
+            }
+            pergaminox += windowWidth/5;
+        }
+    }
+    al_flip_display();
+
+
+    //Seleccion de nivel
+    while (!done)
+    {
+        al_wait_for_event(queue, ev); /* Esperando a que ocurra un evento */
+
+        if (ev->type == ALLEGRO_EVENT_DISPLAY_CLOSE) /* Si es un cierre de la ventana */
+        {
+            return 2;
+        }
+        else if(ev->type == ALLEGRO_EVENT_KEY_DOWN) //En caso de algún movimiento
+        {
+            if(ev->keyboard.keycode == ALLEGRO_KEY_TAB || ev->keyboard.keycode == ALLEGRO_KEY_RIGHT)
+            {
+                actualLevel = (actualLevel+1) % (totalLevels+1);
+            }
+            else if(ev->keyboard.keycode == ALLEGRO_KEY_LEFT)
+            {
+                actualLevel = (actualLevel-1);
+                if(actualLevel<0)
+                    actualLevel=0;
+            }
+            else if(ev->keyboard.keycode == ALLEGRO_KEY_DOWN)
+            {
+                actualLevel = (actualLevel+4) % (totalLevels+1);
+            }
+            else if(ev->keyboard.keycode == ALLEGRO_KEY_UP)
+            {
+                actualLevel = (actualLevel-4);
+                if(actualLevel<0)
+                    actualLevel=0;
+            }
+            else if(ev->keyboard.keycode == ALLEGRO_KEY_SPACE || ev->keyboard.keycode == ALLEGRO_KEY_ENTER)
+            {
+                return actualLevel;
+            }
+        }
+
+        // Dibujo
+        if(actualLevel!=0)
+            al_draw_bitmap(level0_bmap,0,0,0);
+        else
+            al_draw_bitmap(level_bmap,0,0,0);
+
+        for(i=1; i<=totalLevels; i++)
+        {
+            char auxLvl[2];
+            sprintf(auxLvl, "%02d", i);
+            if(i%5 != 0)
+            {
+                if(i == actualLevel)
+                {
+                    al_draw_bitmap(pergaminoSelected_bmap, pergaminox, pergaminoy, 0);
+                    al_draw_text(font, color_white, pergaminox + (al_get_bitmap_width(pergamino_bmap)/2), pergaminoy + (al_get_bitmap_height(pergamino_bmap)/2)-(font_size), ALLEGRO_ALIGN_CENTER, auxLvl);
+                }
+                else
+                {
+                    al_draw_bitmap(pergamino_bmap, pergaminox, pergaminoy, 0);
+                    al_draw_text(font, color_gray, pergaminox + (al_get_bitmap_width(pergamino_bmap)/2), pergaminoy + (al_get_bitmap_height(pergamino_bmap)/2)-(font_size), ALLEGRO_ALIGN_CENTER, auxLvl);
+                }
+                pergaminox += windowWidth/5;
+            }
+            else
+            {
+                pergaminox = (windowWidth*3/10)-(al_get_bitmap_width(pergamino_bmap)/2)-80;
+                pergaminoy += 20 + windowheight/4;
+                if(i == actualLevel)
+                {
+                    al_draw_bitmap(pergaminoSelected_bmap, pergaminox, pergaminoy, 0);
+                    al_draw_text(font, color_white, pergaminox + (al_get_bitmap_width(pergamino_bmap)/2), pergaminoy + (al_get_bitmap_height(pergamino_bmap)/2)-(font_size), ALLEGRO_ALIGN_CENTER, auxLvl);
+                }
+                else
+                {
+                    al_draw_bitmap(pergamino_bmap, pergaminox, pergaminoy, 0);
+                    al_draw_text(font, color_gray, pergaminox + (al_get_bitmap_width(pergamino_bmap)/2), pergaminoy + (al_get_bitmap_height(pergamino_bmap)/2)-(font_size), ALLEGRO_ALIGN_CENTER, auxLvl);
+                }
+                pergaminox += windowWidth/5;
+            }
+        }
+        al_flip_display();
+        //Corrección a ubicación inicial de pergaminos
+        pergaminox = (windowWidth*3/10)-(al_get_bitmap_width(pergamino_bmap)/2)-80;
+        pergaminoy = windowheight*3/8 + 20;
+    }
+
+    al_destroy_bitmap(level_bmap);
+    al_destroy_bitmap(level0_bmap);
+    al_destroy_bitmap(pergamino_bmap);
+    al_destroy_bitmap(pergaminoSelected_bmap);
+}
+
+int game(int board[MAXFILS][MAXCOLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer, int level)
 {
     bool done = false;
     bool win = false;
     int i, j;
-    getBoard(board, "01");
+    char level_string[2];
+    sprintf(level_string, "%02d", level);
+    printf("%s\n",level_string);
+
+    getBoard(board, level_string);
     for(i=0; i<Game.gameRows; i++)
     for(j=0; j<Game.gameCols; j++)
     {
