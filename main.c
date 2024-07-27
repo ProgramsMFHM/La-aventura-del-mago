@@ -132,7 +132,8 @@ hielo power(int board[MAXFILS][MAXCOLS], personaje pnj);
 void manageIce(int board[MAXFILS][MAXCOLS], hielo *ice);
 int manageEnemy(int board[MAXFILS][MAXCOLS], enemigo *enemy);
 int getBoard(int board[MAXFILS][MAXCOLS], char numero[3]);
-int colision(int board[MAXFILS][MAXCOLS], square colisionsquare);
+int objectCollision(int board[MAXFILS][MAXCOLS], square colisionsquare);
+bool enemyCollision(enemigo enemy, personaje pnj);
 bool manageObjects(int board[MAXFILS][MAXCOLS]);
 char doomieMovement(enemigo enemy);
 char toPnjMovement(int board[MAXFILS][MAXCOLS], enemigo enemy , personaje pnj);
@@ -371,7 +372,7 @@ int movePlayer(int board[MAXFILS][MAXCOLS], personaje *pnj, char direction)
         {
             colisionSquare.row = pnj->position.row / lado;
             colisionSquare.col = pnj->position.col / lado;
-            if(colision(board,colisionSquare) == 1)
+            if(objectCollision(board,colisionSquare) == 1)
                 return 1;
         }
         board[pnj->boardPlace.row][pnj->boardPlace.col] = 0;
@@ -385,7 +386,7 @@ int movePlayer(int board[MAXFILS][MAXCOLS], personaje *pnj, char direction)
         {
             colisionSquare.row = pnj->position.row / lado;
             colisionSquare.col = pnj->position.col / lado;
-            if(colision(board,colisionSquare) == 1)
+            if(objectCollision(board,colisionSquare) == 1)
                 return 1;
         }
         board[pnj->boardPlace.row][pnj->boardPlace.col] = 0;
@@ -565,9 +566,7 @@ int moveEnemy(int board[MAXFILS][MAXCOLS], enemigo *enemy)
     // Alterando la posición del enemigo en la matriz
     if((enemy->position.col / lado)!=enemy->boardPlace.col)
     {
-        if(board[enemy->position.row / lado][enemy->position.col / lado]==1)
-            return 3;
-        else if(board[enemy->position.row / lado][enemy->position.col / lado]!=0)
+        if(board[enemy->position.row / lado][enemy->position.col / lado]!=0)
         {
             colisionSquare.row = enemy->position.row / lado;
             colisionSquare.col = enemy->position.col / lado;
@@ -579,9 +578,7 @@ int moveEnemy(int board[MAXFILS][MAXCOLS], enemigo *enemy)
     }
     if((enemy->position.row / lado)!=enemy->boardPlace.row)
     {
-        if(board[enemy->position.row / lado][enemy->position.col / lado]==1)
-            return 3;
-        else if(board[enemy->position.row / lado][enemy->position.col / lado]!=0)
+        if(board[enemy->position.row / lado][enemy->position.col / lado]!=0)
         {
             colisionSquare.row = enemy->position.row / lado;
             colisionSquare.col = enemy->position.col / lado;
@@ -590,6 +587,12 @@ int moveEnemy(int board[MAXFILS][MAXCOLS], enemigo *enemy)
         board[enemy->position.row / lado][enemy->position.col / lado] = enemy->type+2;
         enemy->boardPlace.row = enemy->position.row / lado;
         enemy->boardPlace.col = enemy->position.col / lado;
+    }
+
+    // Comprobando colisiones con el jugador
+    if(enemyCollision(*enemy, player1))
+    {
+        return 3;
     }
 
     return 0;
@@ -1209,12 +1212,9 @@ int getBoard(int board[MAXFILS][MAXCOLS], char numero[3])
     return 0;
 }
 
-int colision(int board[MAXFILS][MAXCOLS], square colisionsquare)
+int objectCollision(int board[MAXFILS][MAXCOLS], square colisionsquare)
 {
     int i;
-
-    if(board[colisionsquare.row][colisionsquare.col] >=2 && board[colisionsquare.row][colisionsquare.col]<=10)
-        return 1;
 
     for(i=0; i<Game.totalNormalObjects; i++)
     {
@@ -1225,6 +1225,23 @@ int colision(int board[MAXFILS][MAXCOLS], square colisionsquare)
         }
     }
     return 0;
+}
+
+bool enemyCollision(enemigo enemy, personaje pnj) {
+    int pnjTop = pnj.position.row - pnj.box.upBox;
+    int pnjBottom = pnj.position.row + pnj.box.bottomBox;
+    int pnjLeft = pnj.position.col - pnj.box.leftBox;
+    int pnjRight = pnj.position.col + pnj.box.rightBox;
+    int enemyTop = enemy.position.row - enemy.box.upBox;
+    int enemyBottom = enemy.position.row + enemy.box.bottomBox;
+    int enemyLeft = enemy.position.col - enemy.box.leftBox;
+    int enemyRight = enemy.position.col + enemy.box.rightBox;
+
+    // Revisando colisiones con el método AABB
+    if (pnjRight < enemyLeft || pnjLeft > enemyRight || pnjBottom < enemyTop || pnjTop > enemyBottom) {
+        return false;
+    }
+    return true;
 }
 
 bool manageObjects(int board[MAXFILS][MAXCOLS])
@@ -1482,9 +1499,10 @@ void draw_pnj(personaje *pnj, ALLEGRO_BITMAP *image){
             pnj->spritecol = 0;
     }
 
-    //al_draw_filled_rectangle(pnj->position.col-pnj->box.leftBox - Game.mapColStart, pnj->position.row-pnj->box.upBox  - Game.mapRowStart, pnj->position.col+pnj->box.rightBox -Game.mapColStart, pnj->position.row+pnj->box.bottomBox - Game.mapRowStart, color_purple1);
+    /* al_draw_filled_rectangle(pnj->position.col-pnj->box.leftBox - Game.mapColStart, pnj->position.row-pnj->box.upBox  - Game.mapRowStart, pnj->position.col+pnj->box.rightBox -Game.mapColStart, pnj->position.row+pnj->box.bottomBox - Game.mapRowStart, color_purple1); */
 
     al_draw_bitmap_region(image, (spriteWidht*pnj->spritecol),(spriteHeight*spritefil),spriteWidht,spriteHeight, pnj->position.col-(spriteWidht/2) - Game.mapColStart , pnj->position.row-(spriteHeight/2) - Game.mapRowStart, 0);
+
     return;
 }
 
