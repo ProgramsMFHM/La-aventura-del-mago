@@ -13,8 +13,8 @@
 #define lado 64
 #define windowNfil 10
 #define windowNcol 15
-#define windowWidth lado*windowNcol
-#define windowheight lado*windowNfil
+#define windowWidth 960
+#define windowheight 640
 #define MAXFILS 30
 #define MAXCOLS 30
 #define font_size 52
@@ -213,6 +213,7 @@ int main()
     font = al_load_ttf_font("./src/fonts/spooky_magic/SpookyMagic.ttf", font_size, 0);
 
     // Inicializando ventana
+    al_set_new_display_flags(ALLEGRO_WINDOWED | ALLEGRO_RESIZABLE);
     ventana = al_create_display(windowWidth , windowheight);
     al_set_target_backbuffer(ventana);
 
@@ -994,7 +995,7 @@ int manageEnemy(int board[MAXFILS][MAXCOLS], enemigo *enemy)
         }
         else if(enemy->state == 1)
         {
-            if(enemy->powerCount!=1)
+            if(enemy->powerCount!=1 && (board[enemy->colisionSquare.row][enemy->colisionSquare.col] != 0))
             {
                 if((al_get_timer_count(timer)%20) == 0)
                 {
@@ -1967,6 +1968,7 @@ int level_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *tim
         }
     }
     al_flip_display();
+    al_rest(0.1); // Para evitar un pequeño glitch
 
 
     //Seleccion de nivel
@@ -2141,7 +2143,7 @@ int game(int board[MAXFILS][MAXCOLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT 
         else if (ev->type == ALLEGRO_EVENT_TIMER)
         {
             /*Limpiamos el Backbuffer*/
-            al_clear_to_color(color_blue);
+            al_clear_to_color(color_black);
 
             if (keys[ALLEGRO_KEY_UP])
             {
