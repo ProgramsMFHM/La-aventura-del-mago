@@ -26,6 +26,7 @@
 #define objectTimerCount 4
 #define MAX_LEVELS 8
 #define MAX_LEVEL_INPUT 10
+#define HIT_COOLDOWN FPS/2 // 0.5 segundo de cooldown
 
 struct _hitBox{
     int leftBox;
@@ -56,11 +57,14 @@ struct _personaje {
     square boardPlace;
     char direction; // U, D, L, R
     hitBox box;
-    int velocity;
+    float velocity;
     bool movement;
     int spritecol;
     int alcance;
     int powerType;
+    unsigned int hits;
+    int hitCooldown;
+    bool hited; //Golpeado, booleano para animacion
 } player1;
 typedef struct _personaje personaje;
 
@@ -87,9 +91,12 @@ typedef struct _enemigo enemigo;
 
 struct _object{
     square position;
+    ALLEGRO_BITMAP *bmp;
     int type;
     int state;
     int cont;
+    int powerTimer;
+    bool active;
 };
 typedef struct _object object;
 
@@ -112,6 +119,9 @@ struct _gameInfo
     int playingNormalObjectType;
     int MAXNormalObjectType;
 
+    object *specialObjects;
+    int totalSpecialObjects;
+
     enemigo *enemies;
     int numEnemies[ENEMY_TYPES];
     int totalEnemies;
@@ -123,7 +133,6 @@ struct _scoreInput
     char name[11];
     int score;
 };
-
 typedef struct _scoreInput scoreInput;
 
 struct _levelScore
@@ -132,7 +141,7 @@ struct _levelScore
     int quantity;
 }levelScores[MAX_LEVELS];
 
- struct _levelScore levelScore;
+typedef struct _levelScore levelScore;
 
 /*Colores*/
 ALLEGRO_COLOR color_black;
@@ -229,6 +238,7 @@ int main()
     player1.velocity=7;
     player1.alcance=5;
     player1.powerType = 0;
+    player1.hited = false;
 
     /*Inicialización allegro*/
     al_init();
@@ -982,7 +992,8 @@ int manageEnemy(int board[MAXFILS][MAXCOLS], enemigo *enemy)
             enemy->direction = doomieMovement(*enemy);
             break;
         case 3: //Choque con el jugador
-            return 1;
+            if(player1.hits==0)
+                return 1;
             break;
         }
         break;
@@ -1007,7 +1018,8 @@ int manageEnemy(int board[MAXFILS][MAXCOLS], enemigo *enemy)
             moveEnemy(board, enemy);
             break;
         case 3: //Choque con el jugador
-            return 1;
+            if(player1.hits==0)
+                return 1;
             break;
         }
         break;
@@ -1027,7 +1039,8 @@ int manageEnemy(int board[MAXFILS][MAXCOLS], enemigo *enemy)
                 enemy->powerCount = 4;
                 break;
             case 3: //Choque con el jugador
-                return 1;
+                if(player1.hits==0)
+                    return 1;
                 break;
             }
         }
@@ -1057,8 +1070,9 @@ int manageEnemy(int board[MAXFILS][MAXCOLS], enemigo *enemy)
 
 int getBoard(int board[MAXFILS][MAXCOLS], char numero[3])
 {
-    int i,j, normalObjectsCont=0, enemiesCont=0;
+    int i,j, normalObjectsCont=0, specialObjectsCont=0, enemiesCont=0;
     Game.totalNormalObjects=0;
+    Game.totalSpecialObjects=0;
     Game.totalEnemies = 0;
     int foundedObjectType;
     char filename[21] = "levels/level";
@@ -1100,10 +1114,15 @@ int getBoard(int board[MAXFILS][MAXCOLS], char numero[3])
             Game.numNormalObjects[board[i][j]-21]++;
             Game.totalNormalObjects++;
         }
+        if(board[i][j]>=31 && board[i][j]<=40) //Si es objeto especial lo cuenta
+        {
+            Game.totalSpecialObjects++;
+        }
     }
     fclose(game);
 
     Game.normalObjects = malloc(sizeof(object)*Game.totalNormalObjects);
+    Game.specialObjects = malloc(sizeof(object)*Game.totalSpecialObjects);
     Game.enemies = malloc(sizeof(enemigo)*Game.totalEnemies);
 
     for(i=0; i<Game.gameRows; i++)
@@ -1116,6 +1135,26 @@ int getBoard(int board[MAXFILS][MAXCOLS], char numero[3])
             Game.normalObjects[normalObjectsCont].type = board[i][j]-21;
             Game.normalObjects[normalObjectsCont].state = -3;
             normalObjectsCont++;
+        }
+        if(board[i][j]>=31 && board[i][j]<=40) //Si es objeto especial sacamos su informacion
+        {
+            Game.specialObjects[specialObjectsCont].position.row = i;
+            Game.specialObjects[specialObjectsCont].position.col = j;
+            Game.specialObjects[specialObjectsCont].type = board[i][j]-31;
+            Game.specialObjects[specialObjectsCont].state = 0;
+            switch (Game.specialObjects[specialObjectsCont].type)
+            {
+                case 0: // Botas
+                    Game.specialObjects[specialObjectsCont].bmp = al_load_bitmap("./src/sprites/board/specialObjects/boots.png");
+                    break;
+                case 1: // Arco
+                    Game.specialObjects[specialObjectsCont].bmp = al_load_bitmap("./src/sprites/board/specialObjects/bow.png");
+                    break;
+                case 2: // Pocion
+                    Game.specialObjects[specialObjectsCont].bmp = al_load_bitmap("./src/sprites/board/specialObjects/pocion.png");
+                    break;
+            }
+            specialObjectsCont++;
         }
         if(board[i][j]>=2 && board[i][j]<=9) //Si es enemigo sacamos su informacion
         {
@@ -1243,6 +1282,11 @@ int getBoard(int board[MAXFILS][MAXCOLS], char numero[3])
         printf("Objeto %d, fila %d, columna %d, tipo %d, estado %d\n\n", i, Game.normalObjects[i].position.row, Game.normalObjects[i].position.col, Game.normalObjects[i].type, Game.normalObjects[i].state);
     } */
 
+   /* for(i=0; i<Game.totalSpecialObjects; i++)
+    {
+        printf("Objeto %d, fila %d, columna %d, tipo %d, estado %d\n\n", i, Game.specialObjects[i].position.row, Game.specialObjects[i].position.col, Game.specialObjects[i].type, Game.specialObjects[i].state);
+    } */
+
     /* for(i=0; i<Game.totalEnemies; i++)
     {
         printf("Enemigo %d, fila %d, columna %d, tipo %d, Dirección %c, [%d][%d][%d][%d]\n\n", i, Game.enemies[i].boardPlace.row, Game.enemies[i].boardPlace.col, Game.enemies[i].type, Game.enemies[i].direction, Game.enemies[i].box.upBox, Game.enemies[i].box.bottomBox, Game.enemies[i].box.leftBox, Game.enemies[i].box.rightBox);
@@ -1255,12 +1299,39 @@ int objectCollision(int board[MAXFILS][MAXCOLS], square colisionsquare)
 {
     int i;
 
+    // Objetons normales
     for(i=0; i<Game.totalNormalObjects; i++)
     {
         if((Game.normalObjects[i].position.row == colisionsquare.row) && (Game.normalObjects[i].position.col == colisionsquare.col))
         {
             Game.normalObjects[i].state = 1;
-            Game.normalObjects[i].cont = Game.normalObjects[i].state!=0;
+            Game.normalObjects[i].cont = objectTimerCount;
+        }
+    }
+
+    // Objetos especiales
+    for(i=0; i<Game.totalSpecialObjects; i++)
+    {
+        if((Game.specialObjects[i].position.row == colisionsquare.row) && (Game.specialObjects[i].position.col == colisionsquare.col))
+        {
+            Game.specialObjects[i].state = 1;
+            Game.specialObjects[i].cont = objectTimerCount;
+            Game.specialObjects[i].active = true;
+            switch (Game.specialObjects[i].type) // Iniciamos contadores de objetos especiales
+            {
+            case 0: // Botas
+                Game.specialObjects[i].powerTimer = FPS*5;
+                player1.velocity *= 1.5;
+                break;
+            case 1: // Arco
+                Game.specialObjects[i].powerTimer = FPS*10;
+                player1.alcance *= 1.5;
+                break;
+            case 2: // Pocion
+                player1.hits++;
+                printf("Hits: %d\n", player1.hits);
+                break;
+            }
         }
     }
     return 0;
@@ -1280,6 +1351,12 @@ bool enemyCollision(enemigo enemy, personaje pnj) {
     if (pnjRight < enemyLeft || pnjLeft > enemyRight || pnjBottom < enemyTop || pnjTop > enemyBottom) {
         return false;
     }
+
+    // Si se llega aqui es porque hubo colision
+    if(player1.hitCooldown == 0)
+        player1.hits--;
+
+    player1.hitCooldown = HIT_COOLDOWN;
     return true;
 }
 
@@ -1288,6 +1365,7 @@ bool manageObjects(int board[MAXFILS][MAXCOLS])
     int i, pasedTypesObjects=0;
     bool nextNormalObjectType=1;
 
+    // Objetos normales
     for(i=0; i<Game.playingNormalObjectType; i++)
     {
         pasedTypesObjects += Game.numNormalObjects[i];
@@ -1322,7 +1400,7 @@ bool manageObjects(int board[MAXFILS][MAXCOLS])
             return 1;
     }
 
-    //Manejando estados pasajeros de objetos normales
+    //Manejando estados pasajeros
     for(i=0; i<Game.totalNormalObjects; i++)
     {
         if(Game.normalObjects[i].state<3 && Game.normalObjects[i].state!=0)
@@ -1349,6 +1427,64 @@ bool manageObjects(int board[MAXFILS][MAXCOLS])
             }
         }
     }
+
+    // Objetos especiales
+    for(i=0; i<Game.totalSpecialObjects; i++)
+    {
+        //Manejamos estados pasajeros
+        if(Game.specialObjects[i].state<3 && Game.specialObjects[i].state!=0)
+        {
+            if(Game.specialObjects[i].cont !=0)
+                Game.specialObjects[i].cont--;
+            else
+                {switch (Game.specialObjects[i].state)
+                {
+                case 1:
+                    Game.specialObjects[i].state++;
+                    break;
+                case 2:
+                    Game.specialObjects[i].state++;
+                    break;
+                }
+                Game.specialObjects[i].cont=objectTimerCount;
+            }
+        }
+        //Manejando habilodades de los objetos especiales
+        if(Game.specialObjects[i].active)
+        {
+            switch (Game.specialObjects[i].type) // Controlamos cada objeto segun su tipo
+            {
+            case 0:  // Botas
+                if(Game.specialObjects[i].powerTimer > 0)
+                    Game.specialObjects[i].powerTimer--;
+                else if(Game.specialObjects[i].powerTimer == 0)
+                {
+                    player1.velocity /= 1.5;
+                    Game.specialObjects[i].active = false;
+                }
+                break;
+            case 1:  // Arco
+                if(Game.specialObjects[i].powerTimer > 0)
+                    Game.specialObjects[i].powerTimer--;
+                else if(Game.specialObjects[i].powerTimer == 0)
+                {
+                    player1.alcance /= 1.5;
+                    Game.specialObjects[i].active = false;
+                }
+                break;
+            }
+        }
+    }
+
+    //Revisando si fueron recogidos, por accidente los objetos especiales
+    for(i=0; i<Game.totalSpecialObjects; i++)
+    {
+        if(Game.specialObjects[i].state == 0 && board[Game.specialObjects[i].position.row][Game.specialObjects[i].position.col] == 0) //En caso de que por alguna razon pase un enemigo u objeto encima de este y quede el espacio vacio entonceas se regresa al estado original.
+        {
+            board[Game.specialObjects[i].position.row][Game.specialObjects[i].position.col] = Game.specialObjects[i].type + 31;
+        }
+    }
+
     return 0;
 }
 
@@ -1750,7 +1886,20 @@ void draw_pnj(personaje *pnj, ALLEGRO_BITMAP *image){
 
     /* al_draw_filled_rectangle(pnj->position.col-pnj->box.leftBox - Game.mapColStart, pnj->position.row-pnj->box.upBox  - Game.mapRowStart, pnj->position.col+pnj->box.rightBox -Game.mapColStart, pnj->position.row+pnj->box.bottomBox - Game.mapRowStart, color_purple1); */
 
-    al_draw_bitmap_region(image, (spriteWidht*pnj->spritecol),(spriteHeight*spritefil),spriteWidht,spriteHeight, pnj->position.col-(spriteWidht/2) - Game.mapColStart , pnj->position.row-(spriteHeight/2) - Game.mapRowStart, 0);
+    if(player1.hitCooldown!=0) // "Animacion de golpe"
+    {
+        if(player1.hited)
+            player1.hited = false;
+        else
+        {
+            al_draw_bitmap_region(image, (spriteWidht*pnj->spritecol),(spriteHeight*spritefil),spriteWidht,spriteHeight, pnj->position.col-(spriteWidht/2) - Game.mapColStart , pnj->position.row-(spriteHeight/2) - Game.mapRowStart, 0);
+            player1.hited = true;
+        }
+    }
+    else //En caso de no ser golpeado
+    {
+        al_draw_bitmap_region(image, (spriteWidht*pnj->spritecol),(spriteHeight*spritefil),spriteWidht,spriteHeight, pnj->position.col-(spriteWidht/2) - Game.mapColStart , pnj->position.row-(spriteHeight/2) - Game.mapRowStart, 0);
+    }
 
     return;
 }
@@ -1849,6 +1998,23 @@ void draw_board(int board[MAXFILS][MAXCOLS]){
             break;
         case 2:
             al_draw_bitmap_region(sparcleBitmap, mapSpriteWidht*1, 0, mapSpriteWidht, mapSpriteHeight, Game.normalObjects[i].position.col*lado - Game.mapColStart, Game.normalObjects[i].position.row*lado - Game.mapRowStart, 0 );
+            break;
+        }
+    }
+
+    // Dibujando especiales
+    for(i=0; i<Game.totalSpecialObjects; i++)
+    {
+        switch (Game.specialObjects[i].state)
+        {
+        case 0:
+            al_draw_bitmap(Game.specialObjects[i].bmp, Game.specialObjects[i].position.col*lado - Game.mapColStart, Game.specialObjects[i].position.row*lado - Game.mapRowStart, 0);
+            break;
+        case 1:
+            al_draw_bitmap_region(sparcleBitmap, mapSpriteWidht*0, 0, mapSpriteWidht, mapSpriteHeight, Game.specialObjects[i].position.col*lado - Game.mapColStart, Game.specialObjects[i].position.row*lado - Game.mapRowStart, 0 );
+            break;
+        case 2:
+            al_draw_bitmap_region(sparcleBitmap, mapSpriteWidht*1, 0, mapSpriteWidht, mapSpriteHeight, Game.specialObjects[i].position.col*lado - Game.mapColStart, Game.specialObjects[i].position.row*lado - Game.mapRowStart, 0 );
             break;
         }
     }
@@ -2499,6 +2665,15 @@ int game(int board[MAXFILS][MAXCOLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT 
     sprintf(level_string, "%02d", level);
     printf("%s\n",level_string);
 
+    // Inicializamos al jugador
+    player1.hits = 1; // Asignando el numero de vidas del jugador a 1
+    player1.direction='D';
+    player1.velocity=7;
+    player1.alcance=5;
+    player1.powerType = 0;
+    player1.hitCooldown = 0;
+    player1.hited = false;
+
     getBoard(board, level_string);
     for(i=0; i<Game.gameRows; i++)
     for(j=0; j<Game.gameCols; j++)
@@ -2571,6 +2746,10 @@ int game(int board[MAXFILS][MAXCOLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT 
         }
         else if (ev->type == ALLEGRO_EVENT_TIMER)
         {
+            //Cooldowns
+            if(player1.hitCooldown !=0) //Cooldown de golpe en caso de ser necesario
+                player1.hitCooldown--;
+
             /*Limpiamos el Backbuffer*/
             al_clear_to_color(color_black);
 

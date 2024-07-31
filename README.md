@@ -155,16 +155,19 @@ A partir de este punto todo depende de la posición del jugador. Un jugador pued
 >
 > Esto es útil puesto que para mostrar los sprites de los obstáculos no hace falta calcular "fracciones de casilla" sino que, puesto que se tiene el valor del lado de la casilla y el valor numérico de cada casilla dentro de la matriz `BOARD` al ejecutar algo como: "`(8*lado) - mapColStart`" obtendremos una posición exacta de dónde hay que imprimir un sprite para que se vea completo dentro de la pantalla.
 
-## Numeración de mapas.
+### Numeración de mapas.
 - **1** Personaje principal
 - **2-20** Enemigos
 - **21-40** Objetos
     - **21-30** Objetos normales
     - **31-40** Objetos especiales
+        - **31** Botas - la velocidad del personaje aumenta en un $50\%$ por 5 segundos.
+        - **32** Arco - El alcance del personaje aumenta en un $50\%$ por 10 segundos.
+        - **32** Poción - Aumenta en 1 el contador `hits` del jugador, es decir, es una vida extra.
 - **41-80** Muros - De 4 en 4 para usar el poder
 
 
-## Estados de un objeto.
+### Estados de un objeto.
 - **-3** Objeto no visible
 - **-2** Objeto empieza a ser visible (1)
 - **-1** Objeto empieza a ser visible (2)
@@ -172,3 +175,13 @@ A partir de este punto todo depende de la posición del jugador. Un jugador pued
 - **1** Objeto empieza a no ser visible (1)
 - **2** Objeto empieza a no ser visible (2)
 - **3** Objeto recogido
+
+> 📘 Tip
+>
+> Los objetos especiales se inicializan al momento de la colisión en `objectCollision` y se manejan en la función: `manageObjects`.
+
+### Vidas
+En la estructira `player` tenemos tres propiedades utiles:
+1. `hits`: que representa la cantidad de colisiones del jugador contra enemigos que puede tener antes de perder.
+2. `hitCooldown`: Para evitar que se muera instantáneamente se agrega un cooldown cuando el personaje es golpeado, que se ve reflejado en forma de parpadeo.
+3. `hited` Una bandera utilizada para este momento de parpadeo.
