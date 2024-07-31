@@ -157,6 +157,7 @@ A partir de este punto todo depende de la posición del jugador. Un jugador pued
 
 ## Numeración de mapas.
 - **1** Personaje principal
+- **2-20** Enemigos
 - **21-40** Objetos
     - **21-30** Objetos normales
     - **31-40** Objetos especiales

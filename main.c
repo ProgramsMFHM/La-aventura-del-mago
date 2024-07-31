@@ -101,6 +101,7 @@ struct _gameInfo
     square endSquare;
     int mapColStart;
     int mapRowStart;
+    bool minimap;
     int score;
     char userName[11];
     int levelNumber;
@@ -165,6 +166,7 @@ void whriteScore();
 
 //Funciones gráficas
 void draw_boardRectangle(int fila, int columna, ALLEGRO_COLOR color);
+void draw_minimap(int board[MAXFILS][MAXCOLS]);
 void draw_pnj(personaje *pnj, ALLEGRO_BITMAP *image);
 void draw_enemy(enemigo *enemy);
 void draw_background(ALLEGRO_BITMAP *bitmap);
@@ -1618,6 +1620,106 @@ void draw_boardRectangle(int fila, int columna, ALLEGRO_COLOR color){
     al_draw_filled_rectangle((columna * lado), (fila * lado), ((columna + 1) * lado), ((fila + 1) * lado), color);
 }
 
+void draw_minimap(int board[MAXFILS][MAXCOLS])
+{
+    int i,j, startx, starty, miniLado, padding;
+    ALLEGRO_BITMAP *faces_bmp;
+    ALLEGRO_BITMAP *pnjFace_bmp;
+    ALLEGRO_COLOR map_fondo, map_green, map_blue, map_red, map_yellow, map_orange, map_gray;
+    map_fondo = al_map_rgba(0,0,0,100);
+    map_green = al_map_rgba(0,50,0,100);
+    map_blue = al_map_rgba(0,0,255,100);
+    map_red = al_map_rgba(255,10,10,100);
+    map_yellow = al_map_rgba(255,255,0,100);
+    map_orange = al_map_rgba(255,69,0,100);
+    map_gray = al_map_rgba(60,60,60,100);
+
+    if(Game.minimap)
+    {
+        faces_bmp = al_load_bitmap("./src/sprites/enemies/miniFaces.png");
+        pnjFace_bmp = al_load_bitmap("./src/sprites/pnj/face.png");
+        miniLado=32;
+        starty = (windowheight-(miniLado*Game.gameRows))/2;
+        startx = (windowWidth-(miniLado*Game.gameCols))/2;
+
+        al_draw_filled_rectangle(0, 0, windowWidth, windowheight, map_fondo);
+
+        for(i=0; i<Game.gameRows; i++)
+        {
+            for(j=0; j<Game.gameCols; j++)
+            {
+                if(board[i][j]==0)
+                    al_draw_filled_rectangle(startx, starty, startx+miniLado, starty+miniLado, map_green);
+                if(board[i][j]==1)
+                    al_draw_scaled_bitmap(pnjFace_bmp, 0, 0, 20, 20, startx, starty, miniLado, miniLado, 0);
+                if(board[i][j]>=2 && board[i][j]<=20)
+                {
+                    al_draw_filled_rectangle(startx, starty, startx+miniLado, starty+miniLado, map_green);
+                    al_draw_scaled_bitmap(faces_bmp, 20*(board[i][j]-2), 0, 20, 20, startx, starty, miniLado, miniLado, 0);
+                }
+                if(board[i][j]>=21 && board[i][j]<=30)
+                {
+                    al_draw_filled_rectangle(startx, starty, startx+miniLado, starty+miniLado, map_green);
+                    al_draw_filled_circle(startx + (miniLado/2), starty + (miniLado/2), (miniLado/2)-1, map_yellow);
+                }
+                if(board[i][j]>=31 && board[i][j]<40)
+                {
+                    al_draw_filled_rectangle(startx, starty, startx+miniLado, starty+miniLado, map_green);
+                    al_draw_filled_circle(startx + (miniLado/2), starty + (miniLado/2), (miniLado/2)-1, map_orange);
+                }
+                if(board[i][j]>=40 && board[i][j]<=44)
+                    al_draw_filled_rectangle(startx, starty, startx+miniLado, starty+miniLado, map_gray);
+                startx += miniLado;
+            }
+            startx = (windowWidth-(miniLado*Game.gameCols))/2;
+            starty += miniLado;
+        }
+    }
+    else
+    {
+        miniLado= 8;
+        padding = 10;
+        starty = padding;
+        startx = windowWidth - padding - (Game.gameCols*miniLado);
+
+        al_draw_filled_rectangle(startx-padding, 0, windowWidth, (padding*2)+(Game.gameRows*miniLado), map_fondo);
+
+        for(i=0; i<Game.gameRows; i++)
+        {
+            for(j=0; j<Game.gameCols; j++)
+            {
+                if(board[i][j]==0)
+                    al_draw_filled_rectangle(startx, starty, startx+miniLado, starty+miniLado, map_green);
+                if(board[i][j]==1)
+                    al_draw_filled_rectangle(startx, starty, startx+miniLado, starty+miniLado, map_blue);
+                if(board[i][j]>=2 && board[i][j]<=20)
+                {
+                    al_draw_filled_rectangle(startx, starty, startx+miniLado, starty+miniLado, map_green);
+                    al_draw_filled_rectangle(startx+1, starty+1, startx+miniLado-2, starty+miniLado-2, map_red);
+                }
+                if(board[i][j]>=21 && board[i][j]<=30)
+                {
+                    al_draw_filled_rectangle(startx, starty, startx+miniLado, starty+miniLado, map_green);
+                    al_draw_filled_circle(startx + (miniLado/2), starty + (miniLado/2), (miniLado/2)-1, map_yellow);
+                }
+                if(board[i][j]>=31 && board[i][j]<40)
+                {
+                    al_draw_filled_rectangle(startx, starty, startx+miniLado, starty+miniLado, map_green);
+                    al_draw_filled_circle(startx + (miniLado/2), starty + (miniLado/2), (miniLado/2)-1, map_orange);
+                }
+                if(board[i][j]>=40 && board[i][j]<=44)
+                    al_draw_filled_rectangle(startx, starty, startx+miniLado, starty+miniLado, map_gray);
+                startx += miniLado;
+            }
+            startx = windowWidth - padding - (Game.gameCols*miniLado);
+            starty += miniLado;
+        }
+    }
+
+
+    return;
+}
+
 void draw_pnj(personaje *pnj, ALLEGRO_BITMAP *image){
     int spriteWidht = al_get_bitmap_width(image)/4;
     int spriteHeight = al_get_bitmap_height(image)/4;
@@ -2472,7 +2574,7 @@ int game(int board[MAXFILS][MAXCOLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT 
             /*Limpiamos el Backbuffer*/
             al_clear_to_color(color_black);
 
-            if (keys[ALLEGRO_KEY_UP])
+            if (keys[ALLEGRO_KEY_UP] || keys[ALLEGRO_KEY_W])
             {
                 if(movePlayer(board, &player1, 'U') ==  1)
                 {
@@ -2481,7 +2583,7 @@ int game(int board[MAXFILS][MAXCOLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT 
                     win = false;
                 }
             }
-            else if (keys[ALLEGRO_KEY_DOWN])
+            else if (keys[ALLEGRO_KEY_DOWN] || keys[ALLEGRO_KEY_S])
             {
                 if(movePlayer(board, &player1, 'D') ==  1)
                 {
@@ -2490,7 +2592,7 @@ int game(int board[MAXFILS][MAXCOLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT 
                     win = false;
                 }
             }
-            else if (keys[ALLEGRO_KEY_LEFT])
+            else if (keys[ALLEGRO_KEY_LEFT] || keys[ALLEGRO_KEY_A])
             {
                 if(movePlayer(board, &player1, 'L') ==  1)
                 {
@@ -2499,7 +2601,7 @@ int game(int board[MAXFILS][MAXCOLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT 
                     win = false;
                 }
             }
-            else if (keys[ALLEGRO_KEY_RIGHT])
+            else if (keys[ALLEGRO_KEY_RIGHT] || keys[ALLEGRO_KEY_D])
             {
                 if(movePlayer(board, &player1, 'R') ==  1)
                 {
@@ -2508,6 +2610,12 @@ int game(int board[MAXFILS][MAXCOLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT 
                     win = false;
                 }
             }
+
+            // Minimapa
+            if (keys[ALLEGRO_KEY_M] || keys[ALLEGRO_KEY_Z])
+                Game.minimap = true;
+            else
+                Game.minimap = false;
 
             if((!ice.possible) && ((al_get_timer_count(timer)%2) == 0)) //Este if se ejecuta cada 2 ticks sólo si NO es posible crear hielo, es decir, si hay hielo pendiente por generar
                 manageIce(board,&ice);
@@ -2528,6 +2636,9 @@ int game(int board[MAXFILS][MAXCOLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT 
 
             /* Dibujar el tablero en el backbuffer*/
             draw_board(board);
+
+            /*Dibujar minimapa*/
+            draw_minimap(board);
 
             /* Actualizar pantalla */
             al_flip_display();
