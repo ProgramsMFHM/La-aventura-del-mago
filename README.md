@@ -161,8 +161,8 @@ A partir de este punto todo depende de la posición del jugador. Un jugador pued
 - **21-40** Objetos
     - **21-30** Objetos normales
     - **31-40** Objetos especiales
-        - **31** Botas - la velocidad del personaje aumenta en un $50\%$ por 5 segundos.
-        - **32** Arco - El alcance del personaje aumenta en un $50\%$ por 10 segundos.
+        - **31** Botas - la velocidad del personaje aumenta en 3 pixels por 5 segundos.
+        - **32** Arco - El alcance del personaje aumenta en 4 bloques por 10 segundos.
         - **32** Poción - Aumenta en 1 el contador `hits` del jugador, es decir, es una vida extra.
 - **41-80** Muros - De 4 en 4 para usar el poder
 

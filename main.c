@@ -96,6 +96,7 @@ struct _object{
     int state;
     int cont;
     int powerTimer;
+    int MAXpowerTimer;
     bool active;
 };
 typedef struct _object object;
@@ -180,6 +181,7 @@ void draw_pnj(personaje *pnj, ALLEGRO_BITMAP *image);
 void draw_enemy(enemigo *enemy);
 void draw_background(ALLEGRO_BITMAP *bitmap);
 void draw_board(int board[MAXFILS][MAXCOLS]);
+void draw_HUD();
 
 /*Partes*/
 int name_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
@@ -1142,13 +1144,16 @@ int getBoard(int board[MAXFILS][MAXCOLS], char numero[3])
             Game.specialObjects[specialObjectsCont].position.col = j;
             Game.specialObjects[specialObjectsCont].type = board[i][j]-31;
             Game.specialObjects[specialObjectsCont].state = 0;
+            Game.specialObjects[specialObjectsCont].active = false;
             switch (Game.specialObjects[specialObjectsCont].type)
             {
                 case 0: // Botas
                     Game.specialObjects[specialObjectsCont].bmp = al_load_bitmap("./src/sprites/board/specialObjects/boots.png");
+                    Game.specialObjects[specialObjectsCont].MAXpowerTimer = 5*FPS;
                     break;
                 case 1: // Arco
                     Game.specialObjects[specialObjectsCont].bmp = al_load_bitmap("./src/sprites/board/specialObjects/bow.png");
+                    Game.specialObjects[specialObjectsCont].MAXpowerTimer = 10*FPS;
                     break;
                 case 2: // Pocion
                     Game.specialObjects[specialObjectsCont].bmp = al_load_bitmap("./src/sprites/board/specialObjects/pocion.png");
@@ -1320,12 +1325,12 @@ int objectCollision(int board[MAXFILS][MAXCOLS], square colisionsquare)
             switch (Game.specialObjects[i].type) // Iniciamos contadores de objetos especiales
             {
             case 0: // Botas
-                Game.specialObjects[i].powerTimer = FPS*5;
-                player1.velocity *= 1.5;
+                Game.specialObjects[i].powerTimer = Game.specialObjects[i].MAXpowerTimer;
+                player1.velocity += 3;
                 break;
             case 1: // Arco
-                Game.specialObjects[i].powerTimer = FPS*10;
-                player1.alcance *= 1.5;
+                Game.specialObjects[i].powerTimer = Game.specialObjects[i].MAXpowerTimer;
+                player1.alcance += 4;
                 break;
             case 2: // Pocion
                 player1.hits++;
@@ -1354,9 +1359,10 @@ bool enemyCollision(enemigo enemy, personaje pnj) {
 
     // Si se llega aqui es porque hubo colision
     if(player1.hitCooldown == 0)
+    {
         player1.hits--;
-
-    player1.hitCooldown = HIT_COOLDOWN;
+        player1.hitCooldown = HIT_COOLDOWN;
+    }
     return true;
 }
 
@@ -1459,7 +1465,7 @@ bool manageObjects(int board[MAXFILS][MAXCOLS])
                     Game.specialObjects[i].powerTimer--;
                 else if(Game.specialObjects[i].powerTimer == 0)
                 {
-                    player1.velocity /= 1.5;
+                    player1.velocity -= 3;
                     Game.specialObjects[i].active = false;
                 }
                 break;
@@ -1468,7 +1474,7 @@ bool manageObjects(int board[MAXFILS][MAXCOLS])
                     Game.specialObjects[i].powerTimer--;
                 else if(Game.specialObjects[i].powerTimer == 0)
                 {
-                    player1.alcance /= 1.5;
+                    player1.alcance -= 4;
                     Game.specialObjects[i].active = false;
                 }
                 break;
@@ -2065,6 +2071,92 @@ void draw_enemy(enemigo *enemy)
 
     al_draw_bitmap_region(enemy->sprite, (spriteWidht*enemy->spritecol),(spriteHeight*spritefil),spriteWidht,spriteHeight, enemy->position.col-(spriteWidht/2) - Game.mapColStart , enemy->position.row-(spriteHeight/2) - Game.mapRowStart, 0);
 
+    return;
+}
+
+void draw_HUD()
+{
+    ALLEGRO_BITMAP *heart_bmp = al_load_bitmap("./src/sprites/HUD/heart.png");
+    ALLEGRO_BITMAP *pergamino_bmp = al_load_bitmap("./src/sprites/HUD/Pergamino.png");
+    ALLEGRO_BITMAP *flowers_bmp = al_load_bitmap("./src/sprites/board/flowers.png");
+    int i, specialObjectx, specialObjecty, specialPercent, cantidadTiposObjNormales=0, contTipo=0, pergaminox, pergaminoy;
+    specialObjectx = 5;
+    specialObjecty = 5;
+
+    // Dibujando vidas
+    al_draw_scaled_bitmap(heart_bmp, 0, 0, al_get_bitmap_width(heart_bmp), al_get_bitmap_height(heart_bmp), 5, windowheight-5-al_get_bitmap_height(heart_bmp), 52, 52, 0);
+    al_draw_textf(font, color_gray, 57, windowheight-25-al_get_bitmap_height(heart_bmp), ALLEGRO_ALIGN_LEFT, "%d", player1.hits);
+
+    //Dibujando objetos normales
+    for(i=0; i<NORMAL_OBJECTS_TYPE; i++)
+    if(Game.numNormalObjects[i] !=0)
+        cantidadTiposObjNormales++;
+    int tipos[cantidadTiposObjNormales];
+
+    for(i=0; i<NORMAL_OBJECTS_TYPE; i++)
+    if(Game.numNormalObjects[i] !=0)
+    {
+        tipos[contTipo] = i;
+        contTipo++;
+    }
+
+    pergaminox = windowWidth - 20 - 64*(cantidadTiposObjNormales+1);
+    pergaminoy = windowheight - al_get_bitmap_height(pergamino_bmp) -5 ;(pergamino_bmp);
+    contTipo = 0;
+
+    for(i=0; i<=cantidadTiposObjNormales; i++)
+    {
+        if(i==0)
+            al_draw_bitmap_region(pergamino_bmp, 64*0, 0, 64, al_get_bitmap_height(pergamino_bmp), pergaminox, pergaminoy, 0);
+        else if(i!=cantidadTiposObjNormales)
+        {
+            al_draw_bitmap_region(pergamino_bmp, 64*1, 0, 64, al_get_bitmap_height(pergamino_bmp), pergaminox, pergaminoy, 0);
+            if(tipos[contTipo] == Game.playingNormalObjectType)
+            {
+                al_draw_bitmap_region(flowers_bmp, 64*tipos[contTipo], 0, 64, 64, pergaminox, pergaminoy+25, 0);
+                al_draw_rounded_rectangle(pergaminox, pergaminoy+25, pergaminox+64, pergaminoy+25+68, 3, 1, color_black, 3);
+            }
+            else if(tipos[contTipo] > Game.playingNormalObjectType)
+                al_draw_bitmap_region(flowers_bmp, 64*tipos[contTipo], 0, 64, 64, pergaminox, pergaminoy+25, 0);
+            else
+            {
+                al_draw_tinted_bitmap_region(flowers_bmp, color_black, 64*tipos[contTipo], 0, 64, 64, pergaminox, pergaminoy+25, 0);
+            }
+            contTipo++;
+        }
+        else
+        {
+            al_draw_bitmap_region(pergamino_bmp, 64*2, 0, 64, al_get_bitmap_height(pergamino_bmp), pergaminox, pergaminoy, 0);
+            al_draw_bitmap_region(flowers_bmp, 64*tipos[contTipo], 0, 64, 64, pergaminox, pergaminoy+25, 0);
+            if(tipos[contTipo] == Game.playingNormalObjectType)
+                al_draw_rounded_rectangle(pergaminox, pergaminoy+25, pergaminox+64, pergaminoy+25+68, 3, 1, color_black, 3);
+        }
+
+        pergaminox+=64;
+    }
+
+
+
+    //Dibujando objetos especiales activos
+    for(i=0; i<Game.totalSpecialObjects; i++)
+    {
+        if(Game.specialObjects[i].active && Game.specialObjects[i].type!=2)
+        {
+            specialPercent = Game.specialObjects[i].powerTimer*100/Game.specialObjects[i].MAXpowerTimer;
+
+            al_draw_rectangle(specialObjectx, specialObjecty, specialObjectx + al_get_bitmap_width(Game.specialObjects[i].bmp), specialObjecty + al_get_bitmap_height(Game.specialObjects[i].bmp),color_gray,2);
+            al_draw_filled_rectangle(specialObjectx, specialObjecty, specialObjectx + al_get_bitmap_width(Game.specialObjects[i].bmp)*((float)specialPercent/100), specialObjecty + al_get_bitmap_height(Game.specialObjects[i].bmp), al_map_rgba(30,30,30,30));
+            al_draw_bitmap(Game.specialObjects[i].bmp, specialObjectx, specialObjecty, 0);
+
+            specialObjectx+=al_get_bitmap_width(Game.specialObjects[i].bmp);
+        }
+    }
+    specialObjectx = 5;
+
+
+    al_destroy_bitmap(heart_bmp);
+    al_destroy_bitmap(pergamino_bmp);
+    al_destroy_bitmap(flowers_bmp);
     return;
 }
 
@@ -2819,6 +2911,9 @@ int game(int board[MAXFILS][MAXCOLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT 
             /*Dibujar minimapa*/
             draw_minimap(board);
 
+            /*Dibujar HUD*/
+            draw_HUD();
+
             /* Actualizar pantalla */
             al_flip_display();
         }
@@ -2829,6 +2924,9 @@ int game(int board[MAXFILS][MAXCOLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT 
 
     for(int i=0; i<Game.totalEnemies; i++) //Eliminando birmaps de enemigos
         al_destroy_bitmap(Game.enemies[i].sprite);
+
+    for(int i=0; i<Game.totalSpecialObjects; i++) //Eliminando birmaps de objetos especiales
+        al_destroy_bitmap(Game.specialObjects[i].bmp);
 
     if(win)
     {
