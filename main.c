@@ -26,7 +26,7 @@
 #define objectTimerCount 4
 #define MAX_LEVELS 8
 #define MAX_LEVEL_INPUT 10
-#define HIT_COOLDOWN FPS/2 // 0.5 segundo de cooldown
+#define HIT_COOLDOWN FPS // 1 segundo de cooldown
 
 struct _hitBox{
     int leftBox;
@@ -141,7 +141,6 @@ struct _levelScore
     scoreInput inputs[MAX_LEVEL_INPUT];
     int quantity;
 }levelScores[MAX_LEVELS];
-
 typedef struct _levelScore levelScore;
 
 /*Colores*/
@@ -2088,52 +2087,55 @@ void draw_HUD()
     al_draw_textf(font, color_gray, 57, windowheight-25-al_get_bitmap_height(heart_bmp), ALLEGRO_ALIGN_LEFT, "%d", player1.hits);
 
     //Dibujando objetos normales
-    for(i=0; i<NORMAL_OBJECTS_TYPE; i++)
+    for(i=0; i<NORMAL_OBJECTS_TYPE; i++) // Contanto la cantidad de tipos de objetos normales
     if(Game.numNormalObjects[i] !=0)
         cantidadTiposObjNormales++;
     int tipos[cantidadTiposObjNormales];
 
-    for(i=0; i<NORMAL_OBJECTS_TYPE; i++)
+    for(i=0; i<NORMAL_OBJECTS_TYPE; i++) // Guardando en arreglo para seleccionar la parte adecuada del bitmap de objetos normales
     if(Game.numNormalObjects[i] !=0)
     {
         tipos[contTipo] = i;
         contTipo++;
     }
 
-    pergaminox = windowWidth - 20 - 64*(cantidadTiposObjNormales+1);
-    pergaminoy = windowheight - al_get_bitmap_height(pergamino_bmp) -5 ;(pergamino_bmp);
+    // Se inicializa el desplazamiento del pergamino
+    pergaminox = windowWidth - 10 - 32*(cantidadTiposObjNormales+1);
+    pergaminoy = windowheight - (al_get_bitmap_height(pergamino_bmp)/2) - 10 ;
     contTipo = 0;
 
+
+    // Dibujamos todas las partes del pergamino
     for(i=0; i<=cantidadTiposObjNormales; i++)
     {
-        if(i==0)
-            al_draw_bitmap_region(pergamino_bmp, 64*0, 0, 64, al_get_bitmap_height(pergamino_bmp), pergaminox, pergaminoy, 0);
-        else if(i!=cantidadTiposObjNormales)
+        if(i==0) // Parte inicial
+            al_draw_scaled_bitmap(pergamino_bmp, 64*0, 0, 64, al_get_bitmap_height(pergamino_bmp), pergaminox, pergaminoy, 32, (al_get_bitmap_height(pergamino_bmp)/2), 0);
+        else if(i!=cantidadTiposObjNormales) // Partes intermedias
         {
-            al_draw_bitmap_region(pergamino_bmp, 64*1, 0, 64, al_get_bitmap_height(pergamino_bmp), pergaminox, pergaminoy, 0);
+            al_draw_scaled_bitmap(pergamino_bmp, 64*1, 0, 64, al_get_bitmap_height(pergamino_bmp), pergaminox, pergaminoy, 32, (al_get_bitmap_height(pergamino_bmp)/2), 0);
             if(tipos[contTipo] == Game.playingNormalObjectType)
             {
-                al_draw_bitmap_region(flowers_bmp, 64*tipos[contTipo], 0, 64, 64, pergaminox, pergaminoy+25, 0);
-                al_draw_rounded_rectangle(pergaminox, pergaminoy+25, pergaminox+64, pergaminoy+25+68, 3, 1, color_black, 3);
+                al_draw_scaled_bitmap(flowers_bmp, 64*tipos[contTipo], 0, 64, 64, pergaminox, pergaminoy+13, 32, 32, 0);
+                al_draw_rounded_rectangle(pergaminox, pergaminoy+13, pergaminox+32, pergaminoy+13+34, 3, 1, color_black, 1);
             }
             else if(tipos[contTipo] > Game.playingNormalObjectType)
-                al_draw_bitmap_region(flowers_bmp, 64*tipos[contTipo], 0, 64, 64, pergaminox, pergaminoy+25, 0);
+                al_draw_scaled_bitmap(flowers_bmp, 64*tipos[contTipo], 0, 64, 64, pergaminox, pergaminoy+13, 32, 32, 0);
             else
             {
-                al_draw_tinted_bitmap_region(flowers_bmp, color_black, 64*tipos[contTipo], 0, 64, 64, pergaminox, pergaminoy+25, 0);
+                al_draw_tinted_scaled_bitmap(flowers_bmp, color_black, 64*tipos[contTipo], 0, 64, 64, pergaminox, pergaminoy+12, 32, 32, 0);
             }
             contTipo++;
         }
-        else
+        else // Parte final del pergamino
         {
-            al_draw_bitmap_region(pergamino_bmp, 64*2, 0, 64, al_get_bitmap_height(pergamino_bmp), pergaminox, pergaminoy, 0);
-            al_draw_bitmap_region(flowers_bmp, 64*tipos[contTipo], 0, 64, 64, pergaminox, pergaminoy+25, 0);
+            al_draw_scaled_bitmap(pergamino_bmp, 64*2, 0, 64, al_get_bitmap_height(pergamino_bmp), pergaminox, pergaminoy, 32, (al_get_bitmap_height(pergamino_bmp)/2), 0);
+            al_draw_scaled_bitmap(flowers_bmp, 64*tipos[contTipo], 0, 64, 64, pergaminox, pergaminoy+13, 32, 32, 0);
             if(tipos[contTipo] == Game.playingNormalObjectType)
-                al_draw_rounded_rectangle(pergaminox, pergaminoy+25, pergaminox+64, pergaminoy+25+68, 3, 1, color_black, 3);
+                al_draw_rounded_rectangle(pergaminox, pergaminoy+13, pergaminox+32, pergaminoy+13+34, 3, 1, color_black, 1);
         }
 
-        pergaminox+=64;
-    }
+        pergaminox+=32;
+    } // El pegamino tiene espacios de 64x64, pero lo dibujamos a la mitad de escala, en espacios de 32x32 para que no sea grande
 
 
 
