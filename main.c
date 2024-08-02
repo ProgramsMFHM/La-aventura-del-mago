@@ -3,6 +3,8 @@
     #include <allegro5/allegro_image.h>
     #include <allegro5/allegro_font.h>
     #include <allegro5/allegro_ttf.h>
+    #include <allegro5/allegro_audio.h>
+    #include <allegro5/allegro_acodec.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -200,6 +202,8 @@ ALLEGRO_FONT *font; /*Fuente*/
 ALLEGRO_FONT *tinyFont; /*Fuente pequenia*/
 ALLEGRO_TIMER *timer; /*Timer*/
 
+ALLEGRO_AUDIO_STREAM *menu_music; /*Musica de menu*/
+
 /*Other variables*/
 bool keys[ALLEGRO_KEY_MAX] = { false }; /* Inicializa todas las teclas como no presionadas. */
 
@@ -240,6 +244,9 @@ int main()
     al_init_font_addon(); // Texto
     al_init_ttf_addon();
     al_install_keyboard(); // Teclado
+    al_install_audio(); // sistema de a udio
+    al_init_acodec_addon(); // codecs de audio
+    al_reserve_samples(10);
 
     /*Fuentes*/
     font = al_load_ttf_font("./src/fonts/spooky_magic/SpookyMagic.ttf", FONT_SIZE, 0);
@@ -260,6 +267,16 @@ int main()
     al_register_event_source(event_queue, al_get_keyboard_event_source());/*El teclado puede dar eventos*/
     al_register_event_source(event_queue, al_get_timer_event_source(timer));/*El temporizador puede dar eventos*/
     ALLEGRO_EVENT ev; /*Creamos un evento que analizaremos*/
+
+    /*Audio*/
+
+    /*Musica*/
+    menu_music = al_load_audio_stream("./src/music/La aventura del mago - mezcla.mp3", 4, 2048);
+    al_set_audio_stream_playmode(menu_music, ALLEGRO_PLAYMODE_LOOP);
+
+    /*Reproducir la cancion inicial*/
+    al_attach_audio_stream_to_mixer(menu_music, al_get_default_mixer());
+    // al_set_audio_stream_playing(menu_music, true);
 
     read_score(); //Lee el Archivo de score para guardarlo en RAM
     name_menu(event_queue, &ev, timer);
@@ -298,6 +315,7 @@ int main()
     al_destroy_timer(timer);
     al_destroy_bitmap(player_bitmap);
     al_destroy_bitmap(board_bitmap);
+    al_destroy_audio_stream(menu_music);
     return 0;
 }
 
