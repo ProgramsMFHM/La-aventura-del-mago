@@ -147,6 +147,15 @@ struct _levelScore
 }levelScores[MAX_LEVELS];
 typedef struct _levelScore levelScore;
 
+struct _music
+{
+    ALLEGRO_AUDIO_STREAM *strem;
+    float volume;
+    int code;
+    bool paused;
+} gameMusic;
+typedef struct _music music;
+
 /*Colores*/
 ALLEGRO_COLOR color_black;
 ALLEGRO_COLOR color_white;
@@ -172,6 +181,8 @@ int count_files_in_directory(const char *path);
 void read_score();
 void update_score(int level, char name[11], int score);
 void whrite_score();
+void select_music(int code);
+void set_music_volume(float volume);
 
 //Funciones gráficas
 void draw_board_rectangle(int fila, int columna, ALLEGRO_COLOR color);
@@ -205,8 +216,6 @@ ALLEGRO_FONT *bigfont; /*Fuente grande*/
 ALLEGRO_FONT *font; /*Fuente*/
 ALLEGRO_FONT *tinyFont; /*Fuente pequenia*/
 ALLEGRO_TIMER *timer; /*Timer*/
-
-ALLEGRO_AUDIO_STREAM *menu_music; /*Musica de menu*/
 
 /*Other variables*/
 bool keys[ALLEGRO_KEY_MAX] = { false }; /* Inicializa todas las teclas como no presionadas. */
@@ -261,15 +270,10 @@ int main()
     al_register_event_source(event_queue, al_get_timer_event_source(timer));/*El temporizador puede dar eventos*/
     ALLEGRO_EVENT ev; /*Creamos un evento que analizaremos*/
 
-    /*Audio*/
-
-    /*Musica*/
-    menu_music = al_load_audio_stream("./src/music/La aventura del mago - mezcla.mp3", 4, 2048);
-    al_set_audio_stream_playmode(menu_music, ALLEGRO_PLAYMODE_LOOP);
-
-    /*Reproducir la cancion inicial*/
-    al_attach_audio_stream_to_mixer(menu_music, al_get_default_mixer());
-    al_set_audio_stream_playing(menu_music, false);
+    /*Inicializamos musica*/
+    gameMusic.code=-1; // No hay cancion seleccionada
+    gameMusic.paused=false; // No hay cancion seleccionada
+    gameMusic.volume=1; // No hay cancion seleccionada
 
     read_score(); //Lee el Archivo de score para guardarlo en RAM
     name_menu(event_queue, &ev, timer);
@@ -308,7 +312,9 @@ int main()
     al_destroy_timer(timer);
     al_destroy_bitmap(player_bitmap);
     al_destroy_bitmap(board_bitmap);
-    al_destroy_audio_stream(menu_music);
+    if (gameMusic.strem) {
+        al_destroy_audio_stream(gameMusic.strem);
+    }
     return 0;
 }
 
@@ -1766,6 +1772,65 @@ void whrite_score()
     return;
 }
 
+void select_music(int code)
+{
+    if(gameMusic.code != code)
+    {
+        if (gameMusic.strem)
+           al_destroy_audio_stream(gameMusic.strem);
+        switch (code)
+        {
+            case 0:
+                gameMusic.strem = al_load_audio_stream("./src/music/menu.mp3", 4, 2048);
+                if (!gameMusic.strem) {
+                    printf("Cancion menu.mp3 no pudo ser cargada");
+                    return;
+                }
+                al_set_audio_stream_playmode(gameMusic.strem, ALLEGRO_PLAYMODE_LOOP);
+                break;
+            case 1:
+                gameMusic.strem = al_load_audio_stream("./src/music/level.mp3", 4, 2048);
+                if (!gameMusic.strem) {
+                    printf("Cancion level.mp3 no pudo ser cargada");
+                    return;
+                }
+                al_set_audio_stream_playmode(gameMusic.strem, ALLEGRO_PLAYMODE_LOOP);
+                break;
+            case 2:
+                gameMusic.strem = al_load_audio_stream("./src/music/win.mp3", 4, 2048);
+                if (!gameMusic.strem) {
+                    printf("Cancion win.mp3 no pudo ser cargada");
+                    return;
+                }
+                al_set_audio_stream_playmode(gameMusic.strem, ALLEGRO_PLAYMODE_ONCE);
+                break;
+            case 3:
+                gameMusic.strem = al_load_audio_stream("./src/music/lose.mp3", 4, 2048);
+                if (!gameMusic.strem) {
+                    printf("Cancion lose.mp3 no pudo ser cargada");
+                    return;
+                }
+                al_set_audio_stream_playmode(gameMusic.strem, ALLEGRO_PLAYMODE_ONCE);
+                break;
+        }
+        /*Reproducir la cancion*/
+        set_music_volume(1);
+        al_attach_audio_stream_to_mixer(gameMusic.strem, al_get_default_mixer());
+        al_set_audio_stream_playing(gameMusic.strem, !gameMusic.paused);
+        gameMusic.code = code;
+    }
+
+    return;
+}
+
+void set_music_volume(float volume)
+{
+    gameMusic.volume = volume;
+    if (gameMusic.strem) {
+        al_set_audio_stream_gain(gameMusic.strem, volume);
+    }
+}
+
 // FUnciones gráficas
 void draw_board_rectangle(int fila, int columna, ALLEGRO_COLOR color){
     al_draw_filled_rectangle((columna * SQUARE_SIDE), (fila * SQUARE_SIDE), ((columna + 1) * SQUARE_SIDE), ((fila + 1) * SQUARE_SIDE), color);
@@ -2216,6 +2281,7 @@ void draw_HUD()
 /*Partes*/
 int name_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer)
 {
+    select_music(0);
     bool done = false;
     char auxName[11];
     int namePosition=-1;
@@ -2264,6 +2330,7 @@ int name_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *time
 
 int main_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer)
 {
+    select_music(0);
     al_stop_timer(timer);
     bool done = false;
     ALLEGRO_BITMAP *jugar_bmap = al_load_bitmap("src/mainMenu/960x640/jugar.png");
@@ -2408,6 +2475,8 @@ int game_over(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *time
     ALLEGRO_BITMAP *gameOver_bmp = al_load_bitmap("src/gameOver/960x640/gameOver.png");
     ALLEGRO_BITMAP *gameOver1_bmp = al_load_bitmap("src/gameOver/960x640/gameOver1.png");
 
+    select_music(3);
+
     // Capturar la pantalla actual
     ALLEGRO_BITMAP *screenshot = al_create_bitmap(WINDOW_COLS*SQUARE_SIDE, WINDOW_ROWS*SQUARE_SIDE);
     al_set_target_bitmap(screenshot);
@@ -2419,6 +2488,7 @@ int game_over(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *time
     al_draw_filled_rectangle(0,0,al_get_display_width(window), al_get_display_height(window), al_map_rgba(0,0,0,200));
     al_draw_bitmap(gameOver_bmp,0,0,0);
     al_flip_display();
+    al_rest(8);
 
     while (!done)
     {
@@ -2466,6 +2536,8 @@ int win_mwnu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer
     bool done = false;
     ALLEGRO_BITMAP *win_bmp = al_load_bitmap("src/win//960x640/win.png");
     ALLEGRO_BITMAP *win0_bmp = al_load_bitmap("src/win/960x640/win0.png");
+
+    select_music(2);
 
     // Capturar la pantalla actual
     ALLEGRO_BITMAP *screenshot = al_create_bitmap(WINDOW_COLS*SQUARE_SIDE, WINDOW_ROWS*SQUARE_SIDE);
@@ -2538,7 +2610,9 @@ int level_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *tim
     int totalLevels = count_files_in_directory("./levels"); //MAX 8
     char auxLvl[3]; //Para dibujar números
 
-    //Dibujo iniciañ
+    select_music(0);
+
+    //Dibujo inicial
     al_draw_bitmap(level0_bmap,0,0,0);
     for(i=1; i<=totalLevels; i++)
     {
@@ -2687,6 +2761,8 @@ int score_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *tim
     int totalLevels = count_files_in_directory("./levels");
     char auxscore[5]; //Para dibujar números
 
+    select_music(0);
+
     //Dibujo inicial
     al_draw_bitmap(next_bmap,0,0,0);
     al_draw_textf(bigfont, color_white, 780, 50, ALLEGRO_ALIGN_CENTER, "Nivel %d",actualLevel+1); //Nivel
@@ -2830,6 +2906,7 @@ int game(int board[MAX_ROWS][MAX_COLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVEN
     for(i=1;i<MAX_POWER_TYPES; i++)
         player1.power_hability[i]=false;
 
+    select_music(1);
     get_board(board, level_string);
     for(i=0; i<Game.gameRows; i++)
     for(j=0; j<Game.gameCols; j++)
