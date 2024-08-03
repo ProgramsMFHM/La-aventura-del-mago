@@ -24,6 +24,7 @@
 #define TINY_FONT_SIZE 28
 #define FPS 24
 #define NORMAL_OBJECTS_TYPES 10
+#define MAX_POWER_TYPES 2
 #define ENEMY_TYPES 3
 #define OBJECT_TIMER_COUNT 4
 #define MAX_LEVELS 8
@@ -64,13 +65,14 @@ struct _character {
     int spritecol;
     int powerScope;
     int powerType;
+    bool power_hability[MAX_POWER_TYPES];
     unsigned int hits;
     int hitCooldown;
     bool hited; //Golpeado, booleano para animacion
 } player1;
 typedef struct _character character;
 
-struct _enemigy {
+struct _enemy {
     square position;
     square boardPlace;
     square colisionSquare;
@@ -89,7 +91,7 @@ struct _enemigy {
     int powerType;
     int powerCount;
 };
-typedef struct _enemigy enemy;
+typedef struct _enemy enemy;
 
 struct _object{
     square position;
@@ -1157,6 +1159,11 @@ int get_board(int board[MAX_ROWS][MAX_COLS], char numero[3])
                     break;
                 case 2: // Pocion
                     Game.specialObjects[specialObjectsCont].bmp = al_load_bitmap("./src/sprites/board/specialObjects/pocion.png");
+                    Game.specialObjects[specialObjectsCont].MAXpowerTimer = 0;
+                    break;
+                case 3: // Varita de roca
+                    Game.specialObjects[specialObjectsCont].bmp = al_load_bitmap("./src/sprites/board/specialObjects/rock_wound.png");
+                    Game.specialObjects[specialObjectsCont].MAXpowerTimer = 0;
                     break;
             }
             specialObjectsCont++;
@@ -1334,6 +1341,9 @@ int object_collision(int board[MAX_ROWS][MAX_COLS], square colisionsquare)
                 break;
             case 2: // Pocion
                 player1.hits++;
+                break;
+            case 3: // Varita de Roca
+                player1.power_hability[1] = true;
                 break;
             }
         }
@@ -1766,14 +1776,16 @@ void draw_minimap(int board[MAX_ROWS][MAX_COLS])
     int i,j, startx, starty, miniLado, padding;
     ALLEGRO_BITMAP *faces_bmp;
     ALLEGRO_BITMAP *pnjFace_bmp;
-    ALLEGRO_COLOR map_fondo, map_green, map_blue, map_red, map_yellow, map_orange, map_gray;
+    ALLEGRO_COLOR map_fondo, map_green, map_green2, map_blue, map_red, map_yellow, map_orange, map_gray, map_brown;
     map_fondo = al_map_rgba(0,0,0,100);
     map_green = al_map_rgba(0,50,0,100);
+    map_green2 = al_map_rgba(0,70,0,100);
     map_blue = al_map_rgba(0,0,255,100);
     map_red = al_map_rgba(255,10,10,100);
     map_yellow = al_map_rgba(255,255,0,100);
     map_orange = al_map_rgba(255,69,0,100);
     map_gray = al_map_rgba(60,60,60,100);
+    map_brown = al_map_rgba(139,69,19,100);
 
     if(Game.minimap)
     {
@@ -1791,25 +1803,29 @@ void draw_minimap(int board[MAX_ROWS][MAX_COLS])
             {
                 if(board[i][j]==0)
                     al_draw_filled_rectangle(startx, starty, startx+miniLado, starty+miniLado, map_green);
-                if(board[i][j]==1)
+                else if(board[i][j]==1)
                     al_draw_scaled_bitmap(pnjFace_bmp, 0, 0, 20, 20, startx, starty, miniLado, miniLado, 0);
-                if(board[i][j]>=2 && board[i][j]<=20)
+                else if(board[i][j]>=2 && board[i][j]<=20)
                 {
                     al_draw_filled_rectangle(startx, starty, startx+miniLado, starty+miniLado, map_green);
                     al_draw_scaled_bitmap(faces_bmp, 20*(board[i][j]-2), 0, 20, 20, startx, starty, miniLado, miniLado, 0);
                 }
-                if(board[i][j]>=21 && board[i][j]<=30)
+                else if(board[i][j]>=21 && board[i][j]<=30)
                 {
                     al_draw_filled_rectangle(startx, starty, startx+miniLado, starty+miniLado, map_green);
                     al_draw_filled_circle(startx + (miniLado/2), starty + (miniLado/2), (miniLado/2)-1, map_yellow);
                 }
-                if(board[i][j]>=31 && board[i][j]<40)
+                else if(board[i][j]>=31 && board[i][j]<40)
                 {
                     al_draw_filled_rectangle(startx, starty, startx+miniLado, starty+miniLado, map_green);
                     al_draw_filled_circle(startx + (miniLado/2), starty + (miniLado/2), (miniLado/2)-1, map_orange);
                 }
-                if(board[i][j]>=40 && board[i][j]<=44)
+                else if(board[i][j]>=40 && board[i][j]<=44)
+                    al_draw_filled_rectangle(startx, starty, startx+miniLado, starty+miniLado, map_green2);
+                else if(board[i][j]>=45 && board[i][j]<=48)
                     al_draw_filled_rectangle(startx, starty, startx+miniLado, starty+miniLado, map_gray);
+                else if(board[i][j]==81)
+                    al_draw_filled_rectangle(startx, starty, startx+miniLado, starty+miniLado, map_brown);
                 startx += miniLado;
             }
             startx = (WINDOW_WIDTH-(miniLado*Game.gameCols))/2;
@@ -1831,25 +1847,29 @@ void draw_minimap(int board[MAX_ROWS][MAX_COLS])
             {
                 if(board[i][j]==0)
                     al_draw_filled_rectangle(startx, starty, startx+miniLado, starty+miniLado, map_green);
-                if(board[i][j]==1)
+                else if(board[i][j]==1)
                     al_draw_filled_rectangle(startx, starty, startx+miniLado, starty+miniLado, map_blue);
-                if(board[i][j]>=2 && board[i][j]<=20)
+                else if(board[i][j]>=2 && board[i][j]<=20)
                 {
                     al_draw_filled_rectangle(startx, starty, startx+miniLado, starty+miniLado, map_green);
                     al_draw_filled_rectangle(startx+1, starty+1, startx+miniLado-2, starty+miniLado-2, map_red);
                 }
-                if(board[i][j]>=21 && board[i][j]<=30)
+                else if(board[i][j]>=21 && board[i][j]<=30)
                 {
                     al_draw_filled_rectangle(startx, starty, startx+miniLado, starty+miniLado, map_green);
                     al_draw_filled_circle(startx + (miniLado/2), starty + (miniLado/2), (miniLado/2)-1, map_yellow);
                 }
-                if(board[i][j]>=31 && board[i][j]<40)
+                else if(board[i][j]>=31 && board[i][j]<40)
                 {
                     al_draw_filled_rectangle(startx, starty, startx+miniLado, starty+miniLado, map_green);
                     al_draw_filled_circle(startx + (miniLado/2), starty + (miniLado/2), (miniLado/2)-1, map_orange);
                 }
-                if(board[i][j]>=40 && board[i][j]<=44)
+                else if(board[i][j]>=40 && board[i][j]<=44)
+                    al_draw_filled_rectangle(startx, starty, startx+miniLado, starty+miniLado, map_green2);
+                else if(board[i][j]>=45 && board[i][j]<=48)
                     al_draw_filled_rectangle(startx, starty, startx+miniLado, starty+miniLado, map_gray);
+                else if(board[i][j]==81)
+                    al_draw_filled_rectangle(startx, starty, startx+miniLado, starty+miniLado, map_brown);
                 startx += miniLado;
             }
             startx = WINDOW_WIDTH - padding - (Game.gameCols*miniLado);
@@ -2090,9 +2110,12 @@ void draw_HUD()
     ALLEGRO_BITMAP *heart_bmp = al_load_bitmap("./src/sprites/HUD/heart.png");
     ALLEGRO_BITMAP *pergamino_bmp = al_load_bitmap("./src/sprites/HUD/Pergamino.png");
     ALLEGRO_BITMAP *flowers_bmp = al_load_bitmap("./src/sprites/board/flowers.png");
-    int i, specialObjectx, specialObjecty, specialPercent, cantidadTiposObjNormales=0, contTipo=0, pergaminox, pergaminoy;
-    specialObjectx = 5;
+    ALLEGRO_BITMAP *powers_bmp = al_load_bitmap("./src/sprites/HUD/power_icons.png");
+    int i, specialObjectx, specialObjecty, powersx, powersy, specialPercent, cantidadTiposObjNormales=0, contTipo=0, pergaminox, pergaminoy;
+    specialObjectx = 5+64;
     specialObjecty = 5;
+    powersx = 5;
+    powersy = 5+64;
 
     // Dibujando vidas
     al_draw_scaled_bitmap(heart_bmp, 0, 0, al_get_bitmap_width(heart_bmp), al_get_bitmap_height(heart_bmp), 5, WINDOW_HEIGHT-5-al_get_bitmap_height(heart_bmp), 52, 52, 0);
@@ -2154,7 +2177,7 @@ void draw_HUD()
     //Dibujando objetos especiales activos
     for(i=0; i<Game.totalSpecialObjects; i++)
     {
-        if(Game.specialObjects[i].active && Game.specialObjects[i].type!=2)
+        if(Game.specialObjects[i].active && Game.specialObjects[i].MAXpowerTimer!=0)
         {
             specialPercent = Game.specialObjects[i].powerTimer*100/Game.specialObjects[i].MAXpowerTimer;
 
@@ -2167,10 +2190,26 @@ void draw_HUD()
     }
     specialObjectx = 5;
 
+    //Dibujando poderes activos
+    for(i=0; i<MAX_POWER_TYPES; i++)
+    {
+        if(player1.power_hability[i])
+        {
+            if(player1.powerType==i) // Dibujamos fondo del recuadro si el poder esta actuvi
+                al_draw_filled_rectangle(powersx, powersy, powersx + 64, powersy + 64, al_map_rgba(0,0,0,100));
+            al_draw_rectangle(powersx, powersy, powersx + 64, powersy + 64, color_gray, 2); // Borde del cuadro
+            al_draw_bitmap_region(powers_bmp, 64*i, 0, 64, 64, powersx, powersy, 0); // Imagen de poder
+            al_draw_textf(tinyFont, color_gray, powersx+64, powersy, ALLEGRO_ALIGN_RIGHT, "%d", i+1);
+            powersy+=64;
+        }
+    }
+    powersy = 5 + 64;
+
 
     al_destroy_bitmap(heart_bmp);
     al_destroy_bitmap(pergamino_bmp);
     al_destroy_bitmap(flowers_bmp);
+    al_destroy_bitmap(powers_bmp);
     return;
 }
 
@@ -2786,6 +2825,11 @@ int game(int board[MAX_ROWS][MAX_COLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVEN
     player1.hitCooldown = 0;
     player1.hited = false;
 
+    /*Iniciamos las habilidades del personaje*/
+    player1.power_hability[0]=true;
+    for(i=1;i<MAX_POWER_TYPES; i++)
+        player1.power_hability[i]=false;
+
     get_board(board, level_string);
     for(i=0; i<Game.gameRows; i++)
     for(j=0; j<Game.gameCols; j++)
@@ -2843,6 +2887,16 @@ int game(int board[MAX_ROWS][MAX_COLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVEN
             {
                 if(ice.possible)
                     ice = power(board, player1);
+            }
+            else if(ev->keyboard.keycode == ALLEGRO_KEY_1)
+            {
+                if(player1.power_hability[0] && ice.possible)
+                    player1.powerType=0;
+            }
+            else if(ev->keyboard.keycode == ALLEGRO_KEY_2)
+            {
+                if(player1.power_hability[1] && ice.possible)
+                    player1.powerType=1;
             }
             else
             {

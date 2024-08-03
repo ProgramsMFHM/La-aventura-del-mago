@@ -164,6 +164,7 @@ A partir de este punto todo depende de la posición del jugador. Un jugador pued
         - **31** Botas - la velocidad del personaje aumenta en 3 pixels por 5 segundos.
         - **32** Arco - El alcance del personaje aumenta en 4 bloques por 10 segundos.
         - **33** Poción - Aumenta en 1 el contador `hits` del jugador, es decir, es una vida extra.
+        - **34** Varita de roca - Proporciona la posibilidad de generar roca
 - **41-80** Muros - De 4 en 4 para usar el poder
 
 
@@ -185,3 +186,7 @@ En la estructira `player` tenemos tres propiedades utiles:
 1. `hits`: que representa la cantidad de colisiones del jugador contra enemigos que puede tener antes de perder.
 2. `hitCooldown`: Para evitar que se muera instantáneamente se agrega un cooldown cuando el personaje es golpeado, que se ve reflejado en forma de parpadeo.
 3. `hited` Una bandera utilizada para este momento de parpadeo.
+
+### Tipos de poderes del personaje.
+- **0** Generar y eliminar arbustos
+- **0** Generar y eliminar roca
