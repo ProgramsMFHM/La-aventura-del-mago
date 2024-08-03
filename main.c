@@ -194,6 +194,8 @@ int game(int board[MAX_ROWS][MAX_COLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVEN
 ALLEGRO_DISPLAY *window;
 ALLEGRO_BITMAP *board_bitmap;
 ALLEGRO_BITMAP *player_bitmap;
+ALLEGRO_BITMAP *bushBitmap;
+ALLEGRO_BITMAP *rootBitmap;
 ALLEGRO_BITMAP *rockBitmap;
 ALLEGRO_BITMAP *flowerBitmap;
 
@@ -225,17 +227,6 @@ int main()
     for(i=0; i<MAX_ROWS; i++)
     for(j=0; j<MAX_COLS; j++)
         board[i][j]=0;
-
-    //Inicializando al jugador 1
-    player1.direction='D';
-    player1.box.left=25;
-    player1.box.right=25;
-    player1.box.top=25;
-    player1.box.bottom=25;
-    player1.velocity=7;
-    player1.powerScope=5;
-    player1.powerType = 0;
-    player1.hited = false;
 
     /*Inicialización allegro*/
     al_init();
@@ -276,7 +267,7 @@ int main()
 
     /*Reproducir la cancion inicial*/
     al_attach_audio_stream_to_mixer(menu_music, al_get_default_mixer());
-    // al_set_audio_stream_playing(menu_music, true);
+    al_set_audio_stream_playing(menu_music, false);
 
     read_score(); //Lee el Archivo de score para guardarlo en RAM
     name_menu(event_queue, &ev, timer);
@@ -1296,7 +1287,7 @@ int get_board(int board[MAX_ROWS][MAX_COLS], char numero[3])
         printf("Objeto %d, fila %d, columna %d, tipo %d, estado %d\n\n", i, Game.normalObjects[i].position.row, Game.normalObjects[i].position.col, Game.normalObjects[i].type, Game.normalObjects[i].state);
     } */
 
-   /* for(i=0; i<Game.totalSpecialObjects; i++)
+    /* for(i=0; i<Game.totalSpecialObjects; i++)
     {
         printf("Objeto %d, fila %d, columna %d, tipo %d, estado %d\n\n", i, Game.specialObjects[i].position.row, Game.specialObjects[i].position.col, Game.specialObjects[i].type, Game.specialObjects[i].state);
     } */
@@ -1343,7 +1334,6 @@ int object_collision(int board[MAX_ROWS][MAX_COLS], square colisionsquare)
                 break;
             case 2: // Pocion
                 player1.hits++;
-                printf("Hits: %d\n", player1.hits);
                 break;
             }
         }
@@ -1949,6 +1939,8 @@ void draw_background(ALLEGRO_BITMAP *bitmap)
 
 void draw_board(int board[MAX_ROWS][MAX_COLS]){
     int i,j;
+    bushBitmap = al_load_bitmap("./src/sprites/board/bush.png");
+    rootBitmap = al_load_bitmap("./src/sprites/board/root.png");
     rockBitmap = al_load_bitmap("./src/sprites/board/rock.png");
     flowerBitmap = al_load_bitmap("./src/sprites/board/flowers.png");
     ALLEGRO_BITMAP *sparcleBitmap = al_load_bitmap("./src/sprites/effects/sparcle.png");
@@ -1981,7 +1973,15 @@ void draw_board(int board[MAX_ROWS][MAX_COLS]){
         {
             if(board[i][j]>=41 && board[i][j]<=44)
             {
-                al_draw_bitmap_region(rockBitmap, (board[i][j]-42)*mapSpriteWidht, 0, mapSpriteWidht, mapSpriteHeight, j*SQUARE_SIDE - Game.mapColStart, i*SQUARE_SIDE - Game.mapRowStart, 0 );
+                al_draw_bitmap_region(bushBitmap, (board[i][j]-42)*mapSpriteWidht, 0, mapSpriteWidht, mapSpriteHeight, j*SQUARE_SIDE - Game.mapColStart, i*SQUARE_SIDE - Game.mapRowStart, 0 );
+            }
+            if(board[i][j]>=45 && board[i][j]<=48)
+            {
+                al_draw_bitmap_region(rockBitmap, (board[i][j]-46)*mapSpriteWidht, 0, mapSpriteWidht, mapSpriteHeight, j*SQUARE_SIDE - Game.mapColStart, i*SQUARE_SIDE - Game.mapRowStart, 0 );
+            }
+            if(board[i][j]==81)
+            {
+                al_draw_bitmap_region(rootBitmap, (board[i][j]-81)*mapSpriteWidht, 0, mapSpriteWidht, mapSpriteHeight, j*SQUARE_SIDE - Game.mapColStart, i*SQUARE_SIDE - Game.mapRowStart, 0 );
             }
             /* if(board[i][j]==1)
             {
@@ -2042,6 +2042,8 @@ void draw_board(int board[MAX_ROWS][MAX_COLS]){
     //Dibujando al jugador
     draw_pnj(&player1, player_bitmap);
 
+    al_destroy_bitmap(bushBitmap);
+    al_destroy_bitmap(rootBitmap);
     al_destroy_bitmap(rockBitmap);
     al_destroy_bitmap(flowerBitmap);
     al_destroy_bitmap(sparcleBitmap);
@@ -2770,6 +2772,12 @@ int game(int board[MAX_ROWS][MAX_COLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVEN
     printf("%s\n",level_string);
 
     // Inicializamos al jugador
+    player1.direction='D';
+    player1.box.left=25;
+    player1.box.right=25;
+    player1.box.top=25;
+    player1.box.bottom=25;
+    player1.hited = false;
     player1.hits = 1; // Asignando el numero de vidas del jugador a 1
     player1.direction='D';
     player1.velocity=7;
