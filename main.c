@@ -30,6 +30,7 @@
 #define MAX_LEVELS 8
 #define MAX_LEVEL_INPUT 10
 #define HIT_COOLDOWN FPS // 1 segundo de cooldown
+#define MAX_CONFIG_ITEMS 8
 
 struct _hitBox{
     int left;
@@ -150,11 +151,23 @@ typedef struct _levelScore levelScore;
 struct _music
 {
     ALLEGRO_AUDIO_STREAM *strem;
-    float volume;
     int code;
     bool paused;
 } gameMusic;
 typedef struct _music music;
+
+struct _config
+{
+    int UP;
+    int DOWN;
+    int LEFT;
+    int RIGHT;
+    int POWER;
+    int MINIMAP;
+    float MUSICVOLUME;
+    float SFXVOLUME;
+} gameConfig;
+typedef struct _config config;
 
 /*Colores*/
 ALLEGRO_COLOR color_black;
@@ -183,6 +196,9 @@ void update_score(int level, char name[11], int score);
 void whrite_score();
 void select_music(int code);
 void set_music_volume(float volume);
+void get_config();
+void whrite_config();
+void get_key_name();
 
 //Funciones gráficas
 void draw_board_rectangle(int fila, int columna, ALLEGRO_COLOR color);
@@ -194,12 +210,15 @@ void draw_board(int board[MAX_ROWS][MAX_COLS]);
 void draw_HUD();
 
 /*Partes*/
+int select_key(char *purpose, ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
+int select_number(int min, int max, int def, char *purpose, ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
 int name_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
 int main_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
 int pause_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
 int game_over(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
 int win_mwnu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
 int level_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
+int config_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
 int score_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
 int game(int board[MAX_ROWS][MAX_COLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer, int level);
 
@@ -273,9 +292,11 @@ int main()
     /*Inicializamos musica*/
     gameMusic.code=-1; // No hay cancion seleccionada
     gameMusic.paused=false; // No hay cancion seleccionada
-    gameMusic.volume=1; // No hay cancion seleccionada
 
+    get_config(); // Configuracion
     read_score(); //Lee el Archivo de score para guardarlo en RAM
+
+    config_menu(event_queue, &ev, timer);
     name_menu(event_queue, &ev, timer);
     while (!done)
     {
@@ -1814,7 +1835,7 @@ void select_music(int code)
                 break;
         }
         /*Reproducir la cancion*/
-        set_music_volume(1);
+        set_music_volume(gameConfig.MUSICVOLUME);
         al_attach_audio_stream_to_mixer(gameMusic.strem, al_get_default_mixer());
         al_set_audio_stream_playing(gameMusic.strem, !gameMusic.paused);
         gameMusic.code = code;
@@ -1825,9 +1846,270 @@ void select_music(int code)
 
 void set_music_volume(float volume)
 {
-    gameMusic.volume = volume;
+    gameConfig.MUSICVOLUME = volume;
     if (gameMusic.strem) {
         al_set_audio_stream_gain(gameMusic.strem, volume);
+    }
+}
+
+void get_config()
+{
+    int i;
+    char aux[12];
+    FILE *configFile;
+
+    //Abriendo archivo
+    if ((configFile = fopen("./src/config/config.txt", "r"))==NULL)
+        {
+            printf("Error al abrir el archivo de configuracion\n");
+        }
+    else
+        printf("Configuracion abierto\n");
+
+    //Leyendo archivo
+
+    // Izquierda
+    printf("Leyendo\n\n");
+    fscanf(configFile, "%s", aux);
+    fscanf(configFile, "%d", &gameConfig.LEFT);
+
+    // Derecha
+    printf("Leyendo\n\n");
+    fscanf(configFile, "%s", aux);
+    fscanf(configFile, "%d", &gameConfig.RIGHT);
+
+    // Arriba
+    printf("Leyendo\n\n");
+    fscanf(configFile, "%s", aux);
+    fscanf(configFile, "%d", &gameConfig.UP);
+
+    // ABAJO
+    printf("Leyendo\n\n");
+    fscanf(configFile, "%s", aux);
+    fscanf(configFile, "%d", &gameConfig.DOWN);
+
+    // Poder
+    printf("Leyendo\n\n");
+    fscanf(configFile, "%s", aux);
+    fscanf(configFile, "%d", &gameConfig.POWER);
+
+    // Minimapa
+    printf("Leyendo\n\n");
+    fscanf(configFile, "%s", aux);
+    fscanf(configFile, "%d", &gameConfig.MINIMAP);
+
+    // Volumen de la musica
+    printf("Leyendo\n\n");
+    fscanf(configFile, "%s", aux);
+    fscanf(configFile, "%f", &gameConfig.MUSICVOLUME);
+
+    // Volumen Efectos de sonido
+    printf("Leyendo\n\n");
+    fscanf(configFile, "%s", aux);
+    fscanf(configFile, "%f", &gameConfig.SFXVOLUME);
+
+
+
+    /* Imprimiendo leido
+    Printf("UP: %d\n", gameConfig.UP);
+    printf("DOWN: %d\n", gameConfig.DOWN);
+    printf("LEFT: %d\n", gameConfig.LEFT);
+    printf("RIGHT: %d\n", gameConfig.RIGHT);
+    printf("POWER: %d\n", gameConfig.POWER);
+    printf("MINIMAP: %d\n", gameConfig.MINIMAP);
+    printf("MUSICVOLUME: %f\n", gameConfig.MUSICVOLUME);
+    printf("SFXVOLUME: %f\n", gameConfig.SFXVOLUME); */
+
+   fclose(configFile);
+    return;
+}
+
+void whrite_config()
+{
+int i, j;
+    char aux[7];
+    FILE *configFile;
+
+    //Abriendo archivo
+    if ((configFile = fopen("./src/config/config.txt", "w"))==NULL)
+        {
+            printf("Error al abrir el archivo de configuracion\n");
+        }
+    else
+        printf("Configuracion abierta abierto\n");
+
+    //Escribiendo archivo
+    fprintf(configFile, "LEFT %d\n", gameConfig.LEFT);
+    fprintf(configFile, "RIGHT %d\n", gameConfig.RIGHT);
+    fprintf(configFile, "UP %d\n", gameConfig.UP);
+    fprintf(configFile, "DOWN %d\n", gameConfig.DOWN);
+    fprintf(configFile, "POWER %d\n", gameConfig.POWER);
+    fprintf(configFile, "MINIMAP %d\n", gameConfig.MINIMAP);
+    fprintf(configFile, "MUSICVOLUME %f\n", gameConfig.MUSICVOLUME);
+    fprintf(configFile, "SFXVOLUME %f\n", gameConfig.SFXVOLUME);
+
+    fclose(configFile);
+    return;
+}
+
+void get_key_name(int x, char *aux) {
+    switch (x) {
+        case 1: sprintf(aux, "A"); break;
+        case 2: sprintf(aux, "B"); break;
+        case 3: sprintf(aux, "C"); break;
+        case 4: sprintf(aux, "D"); break;
+        case 5: sprintf(aux, "E"); break;
+        case 6: sprintf(aux, "F"); break;
+        case 7: sprintf(aux, "G"); break;
+        case 8: sprintf(aux, "H"); break;
+        case 9: sprintf(aux, "I"); break;
+        case 10: sprintf(aux, "J"); break;
+        case 11: sprintf(aux, "K"); break;
+        case 12: sprintf(aux, "L"); break;
+        case 13: sprintf(aux, "M"); break;
+        case 14: sprintf(aux, "N"); break;
+        case 15: sprintf(aux, "O"); break;
+        case 16: sprintf(aux, "P"); break;
+        case 17: sprintf(aux, "Q"); break;
+        case 18: sprintf(aux, "R"); break;
+        case 19: sprintf(aux, "S"); break;
+        case 20: sprintf(aux, "T"); break;
+        case 21: sprintf(aux, "U"); break;
+        case 22: sprintf(aux, "V"); break;
+        case 23: sprintf(aux, "W"); break;
+        case 24: sprintf(aux, "X"); break;
+        case 25: sprintf(aux, "Y"); break;
+        case 26: sprintf(aux, "Z"); break;
+
+        case 27: sprintf(aux, "0"); break;
+        case 28: sprintf(aux, "1"); break;
+        case 29: sprintf(aux, "2"); break;
+        case 30: sprintf(aux, "3"); break;
+        case 31: sprintf(aux, "4"); break;
+        case 32: sprintf(aux, "5"); break;
+        case 33: sprintf(aux, "6"); break;
+        case 34: sprintf(aux, "7"); break;
+        case 35: sprintf(aux, "8"); break;
+        case 36: sprintf(aux, "9"); break;
+
+        case 37: sprintf(aux, "PAD 0"); break;
+        case 38: sprintf(aux, "PAD 1"); break;
+        case 39: sprintf(aux, "PAD 2"); break;
+        case 40: sprintf(aux, "PAD 3"); break;
+        case 41: sprintf(aux, "PAD 4"); break;
+        case 42: sprintf(aux, "PAD 5"); break;
+        case 43: sprintf(aux, "PAD 6"); break;
+        case 44: sprintf(aux, "PAD 7"); break;
+        case 45: sprintf(aux, "PAD 8"); break;
+        case 46: sprintf(aux, "PAD 9"); break;
+
+        case 47: sprintf(aux, "F1"); break;
+        case 48: sprintf(aux, "F2"); break;
+        case 49: sprintf(aux, "F3"); break;
+        case 50: sprintf(aux, "F4"); break;
+        case 51: sprintf(aux, "F5"); break;
+        case 52: sprintf(aux, "F6"); break;
+        case 53: sprintf(aux, "F7"); break;
+        case 54: sprintf(aux, "F8"); break;
+        case 55: sprintf(aux, "F9"); break;
+        case 56: sprintf(aux, "F10"); break;
+        case 57: sprintf(aux, "F11"); break;
+        case 58: sprintf(aux, "F12"); break;
+
+        case 59: sprintf(aux, "ESCAPE"); break;
+        case 60: sprintf(aux, "TILDE"); break;
+        case 61: sprintf(aux, "MINUS"); break;
+        case 62: sprintf(aux, "EQUALS"); break;
+        case 63: sprintf(aux, "BACKSPACE"); break;
+        case 64: sprintf(aux, "TAB"); break;
+        case 65: sprintf(aux, "OPENBRACE"); break;
+        case 66: sprintf(aux, "CLOSEBRACE"); break;
+        case 67: sprintf(aux, "ENTER"); break;
+        case 68: sprintf(aux, "SEMICOLON"); break;
+        case 69: sprintf(aux, "QUOTE"); break;
+        case 70: sprintf(aux, "BACKSLASH"); break;
+        case 71: sprintf(aux, "BACKSLASH2"); break; /* < > | on UK/Germany keyboards */
+        case 72: sprintf(aux, "COMMA"); break;
+        case 73: sprintf(aux, "FULLSTOP"); break;
+        case 74: sprintf(aux, "SLASH"); break;
+        case 75: sprintf(aux, "SPACE"); break;
+
+        case 76: sprintf(aux, "INSERT"); break;
+        case 77: sprintf(aux, "DELETE"); break;
+        case 78: sprintf(aux, "HOME"); break;
+        case 79: sprintf(aux, "END"); break;
+        case 80: sprintf(aux, "PGUP"); break;
+        case 81: sprintf(aux, "PGDN"); break;
+        case 82: sprintf(aux, "LEFT"); break;
+        case 83: sprintf(aux, "RIGHT"); break;
+        case 84: sprintf(aux, "UP"); break;
+        case 85: sprintf(aux, "DOWN"); break;
+
+        case 86: sprintf(aux, "PAD SLASH"); break;
+        case 87: sprintf(aux, "PAD ASTERISK"); break;
+        case 88: sprintf(aux, "PAD MINUS"); break;
+        case 89: sprintf(aux, "PAD PLUS"); break;
+        case 90: sprintf(aux, "PAD DELETE"); break;
+        case 91: sprintf(aux, "PAD ENTER"); break;
+
+        case 92: sprintf(aux, "PRINTSCREEN"); break;
+        case 93: sprintf(aux, "PAUSE"); break;
+
+        case 94: sprintf(aux, "ABNT C1"); break;
+        case 95: sprintf(aux, "YEN"); break;
+        case 96: sprintf(aux, "KANA"); break;
+        case 97: sprintf(aux, "CONVERT"); break;
+        case 98: sprintf(aux, "NOCONVERT"); break;
+        case 99: sprintf(aux, "AT"); break;
+        case 100: sprintf(aux, "CIRCUMFLEX"); break;
+        case 101: sprintf(aux, "COLON2"); break;
+        case 102: sprintf(aux, "KANJI"); break;
+
+        case 103: sprintf(aux, "PAD EQUALS"); break;
+        case 104: sprintf(aux, "BACKQUOTE"); break;
+        case 105: sprintf(aux, "SEMICOLON2"); break;
+        case 106: sprintf(aux, "COMMAND"); break;
+
+        case 107: sprintf(aux, "BACK"); break;        /* Android back key */
+        case 108: sprintf(aux, "VOLUME UP"); break;
+        case 109: sprintf(aux, "VOLUME DOWN"); break;
+
+        case 110: sprintf(aux, "SEARCH"); break;
+        case 111: sprintf(aux, "DPAD CENTER"); break;
+        case 112: sprintf(aux, "BUTTON X"); break;
+        case 113: sprintf(aux, "BUTTON Y"); break;
+        case 114: sprintf(aux, "DPAD UP"); break;
+        case 115: sprintf(aux, "DPAD DOWN"); break;
+        case 116: sprintf(aux, "DPAD LEFT"); break;
+        case 117: sprintf(aux, "DPAD RIGHT"); break;
+        case 118: sprintf(aux, "SELECT"); break;
+        case 119: sprintf(aux, "START"); break;
+        case 120: sprintf(aux, "BUTTON L1"); break;
+        case 121: sprintf(aux, "BUTTON R1"); break;
+        case 122: sprintf(aux, "BUTTON L2"); break;
+        case 123: sprintf(aux, "BUTTON R2"); break;
+        case 124: sprintf(aux, "BUTTON A"); break;
+        case 125: sprintf(aux, "BUTTON B"); break;
+        case 126: sprintf(aux, "THUMBL"); break;
+        case 127: sprintf(aux, "THUMBR"); break;
+
+        case 128: sprintf(aux, "UNKNOWN"); break;
+
+        case 215: sprintf(aux, "MODIFIERS"); break;
+        case 216: sprintf(aux, "LSHIFT"); break;
+        case 217: sprintf(aux, "RSHIFT"); break;
+        case 218: sprintf(aux, "LCTRL"); break;
+        case 219: sprintf(aux, "RCTRL"); break;
+        case 220: sprintf(aux, "ALT"); break;
+        case 221: sprintf(aux, "ALTGR"); break;
+        case 222: sprintf(aux, "LWIN"); break;
+        case 223: sprintf(aux, "RWIN"); break;
+        case 224: sprintf(aux, "MENU"); break;
+        case 225: sprintf(aux, "SCROLLLOCK"); break;
+        case 226: sprintf(aux, "NUMLOCK"); break;
+        case 227: sprintf(aux, "CAPSLOCK"); break;
+
+        default: sprintf(aux, "UNKNOWN"); break;
     }
 }
 
@@ -2279,9 +2561,153 @@ void draw_HUD()
 }
 
 /*Partes*/
+int select_key(char *purpose, ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer)
+{
+    bool done = false;
+
+    // Capturar la pantalla actual
+    ALLEGRO_BITMAP *screenshot = al_create_bitmap(WINDOW_WIDTH, WINDOW_HEIGHT);
+    al_set_target_bitmap(screenshot);
+    al_draw_bitmap(al_get_backbuffer(window), 0, 0, 0);
+    al_set_target_backbuffer(al_get_current_display());
+
+    //Dibujo inicial
+    al_draw_bitmap(screenshot,0,0,0);
+    al_draw_filled_rectangle(0,0, WINDOW_WIDTH, WINDOW_HEIGHT, al_map_rgba(0,0,0,200));
+    al_draw_rounded_rectangle(WINDOW_WIDTH/4, WINDOW_HEIGHT/4, 3*WINDOW_WIDTH/4, 3*WINDOW_HEIGHT/4, 5, 5, color_gray, 7);
+    al_draw_filled_rounded_rectangle(WINDOW_WIDTH/4, WINDOW_HEIGHT/4, 3*WINDOW_WIDTH/4, 3*WINDOW_HEIGHT/4, 5, 5, al_map_rgba(20,20,20,50));
+    al_draw_text(tinyFont, color_gray, WINDOW_WIDTH/2, WINDOW_HEIGHT/2 - FONT_SIZE*1.5 - 20, ALLEGRO_ALIGN_CENTER, "Ingrese una tecla");
+    al_draw_text(tinyFont, color_gray, WINDOW_WIDTH/2, WINDOW_HEIGHT/2 - 20, ALLEGRO_ALIGN_CENTER, "para asignar a:");
+    al_draw_text(tinyFont, color_gray, WINDOW_WIDTH/2, WINDOW_HEIGHT/2 + FONT_SIZE*1.5 - 20, ALLEGRO_ALIGN_CENTER, purpose);
+
+    al_flip_display();
+
+    while (!done)
+    {
+        al_wait_for_event(queue, ev); // Esperando a que ocurra un evento
+
+        if (ev->type == ALLEGRO_EVENT_DISPLAY_CLOSE) // Si es un cierre de la ventana
+        {
+            return -1;
+        }
+        else if(ev->type == ALLEGRO_EVENT_KEY_DOWN)
+        {
+            return ev->keyboard.keycode;
+        }
+
+        //Dibujo
+        al_draw_bitmap(screenshot,0,0,0);
+        al_draw_filled_rectangle(0,0, WINDOW_WIDTH, WINDOW_HEIGHT, al_map_rgba(0,0,0,200));
+        al_draw_rounded_rectangle(WINDOW_WIDTH/4, WINDOW_HEIGHT/4, 3*WINDOW_WIDTH/4, 3*WINDOW_HEIGHT/4, 5, 5, color_gray, 7);
+        al_draw_filled_rounded_rectangle(WINDOW_WIDTH/4, WINDOW_HEIGHT/4, 3*WINDOW_WIDTH/4, 3*WINDOW_HEIGHT/4, 5, 5, al_map_rgba(20,20,20,50));
+        al_draw_text(tinyFont, color_gray, WINDOW_WIDTH/2, WINDOW_HEIGHT/2 - FONT_SIZE*1.5 - 20, ALLEGRO_ALIGN_CENTER, "Ingrese una tecla");
+        al_draw_text(tinyFont, color_gray, WINDOW_WIDTH/2, WINDOW_HEIGHT/2 - 20, ALLEGRO_ALIGN_CENTER, "para asignar a:");
+        al_draw_text(tinyFont, color_gray, WINDOW_WIDTH/2, WINDOW_HEIGHT/2 + FONT_SIZE*1.5 - 20, ALLEGRO_ALIGN_CENTER, purpose);
+        al_flip_display();
+    }
+
+    al_destroy_bitmap(screenshot);
+}
+
+int select_number(int min, int max, int def, char *purpose, ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer)
+{
+    bool done = false;
+    char aux[5];
+    int offset = (WINDOW_WIDTH/3)+20;
+    float percent;
+    int indicatorPosition;
+    int i;
+    char purposeStrung[30];
+    sprintf(purposeStrung, "Seleccion %s", purpose);
+
+    // Capturar la pantalla actual
+    ALLEGRO_BITMAP *screenshot = al_create_bitmap(WINDOW_WIDTH, WINDOW_HEIGHT);
+    al_set_target_bitmap(screenshot);
+    al_draw_bitmap(al_get_backbuffer(window), 0, 0, 0);
+    al_set_target_backbuffer(al_get_current_display());
+
+    //Dibujo inicial
+    percent = ((float)def / (float)(max-min));
+    indicatorPosition = (WINDOW_WIDTH-(WINDOW_WIDTH/3)-20 - offset)*percent + offset;
+    sprintf(aux, "%03d", def);
+    al_draw_bitmap(screenshot,0,0,0);
+    al_draw_filled_rectangle(0,0, WINDOW_WIDTH, WINDOW_HEIGHT, al_map_rgba(0,0,0,200));
+    al_draw_rounded_rectangle(WINDOW_WIDTH/4, WINDOW_HEIGHT/4, 3*WINDOW_WIDTH/4, 3*WINDOW_HEIGHT/4, 5, 5, color_gray, 7);
+    al_draw_filled_rounded_rectangle(WINDOW_WIDTH/4, WINDOW_HEIGHT/4, 3*WINDOW_WIDTH/4, 3*WINDOW_HEIGHT/4, 5, 5, al_map_rgba(20,20,20,50));
+    al_draw_text(tinyFont, color_gray, WINDOW_WIDTH/2, WINDOW_HEIGHT/2 - FONT_SIZE*1.5 - 20, ALLEGRO_ALIGN_CENTER, purposeStrung);
+    al_draw_text(tinyFont, color_gray, WINDOW_WIDTH/2, WINDOW_HEIGHT/2 + FONT_SIZE*1.5 - 20, ALLEGRO_ALIGN_CENTER, aux);
+
+    // Dibujando barra de volumen
+    al_draw_text(tinyFont, color_gray, WINDOW_WIDTH/3, WINDOW_HEIGHT/2 - 20, ALLEGRO_ALIGN_LEFT, "-"); // Menos
+    al_draw_text(tinyFont, color_gray, WINDOW_WIDTH-(WINDOW_WIDTH/3), WINDOW_HEIGHT/2 - 20, ALLEGRO_ALIGN_LEFT, "+"); // Max
+    al_draw_line((WINDOW_WIDTH/3)+20, WINDOW_HEIGHT/2 - 20 + 18, WINDOW_WIDTH-(WINDOW_WIDTH/3)-20, WINDOW_HEIGHT/2 - 20 + 18, color_gray, 3); // Barra horizontal
+    al_draw_line(indicatorPosition, WINDOW_HEIGHT/2 - 20 + 8, indicatorPosition, WINDOW_HEIGHT/2 - 20 + 28, color_gray, 3); // Indicador volumen (Se usa el porcentaje)
+    al_flip_display();
+
+
+    al_start_timer(timer);
+    while (!done)
+    {
+        al_wait_for_event(queue, ev); // Esperando a que ocurra un evento
+
+        if (ev->type == ALLEGRO_EVENT_DISPLAY_CLOSE) // Si es un cierre de la ventana
+        {
+            return -1;
+        }
+        else if(ev->type == ALLEGRO_EVENT_KEY_DOWN)
+        {
+            if(ev->keyboard.keycode == ALLEGRO_KEY_ENTER || ev->keyboard.keycode == ALLEGRO_KEY_SPACE || ev->keyboard.keycode == ALLEGRO_KEY_ESCAPE)
+                return def;
+            else
+                keys[ev->keyboard.keycode] = true;
+        }
+        else if (ev->type == ALLEGRO_EVENT_KEY_UP)
+        {
+            keys[ev->keyboard.keycode] = false;
+        }
+        else if (ev->type == ALLEGRO_EVENT_TIMER)
+        {
+            if (keys[ALLEGRO_KEY_UP] || keys[ALLEGRO_KEY_RIGHT])
+            {
+                if(def<max)
+                    def++;
+            }
+            else if (keys[ALLEGRO_KEY_DOWN] || keys[ALLEGRO_KEY_LEFT])
+            {
+                if(def>min)
+                    def--;
+            }
+        }
+
+        //Dibujo
+        percent = ((float)def / (float)(max-min));
+        indicatorPosition = (WINDOW_WIDTH-(WINDOW_WIDTH/3)-20 - offset)*percent + offset;
+        sprintf(aux, "%03d", def);
+        al_draw_bitmap(screenshot,0,0,0);
+        al_draw_filled_rectangle(0,0, WINDOW_WIDTH, WINDOW_HEIGHT, al_map_rgba(0,0,0,200));
+        al_draw_rounded_rectangle(WINDOW_WIDTH/4, WINDOW_HEIGHT/4, 3*WINDOW_WIDTH/4, 3*WINDOW_HEIGHT/4, 5, 5, color_gray, 7);
+        al_draw_filled_rounded_rectangle(WINDOW_WIDTH/4, WINDOW_HEIGHT/4, 3*WINDOW_WIDTH/4, 3*WINDOW_HEIGHT/4, 5, 5, al_map_rgba(20,20,20,50));
+        al_draw_text(tinyFont, color_gray, WINDOW_WIDTH/2, WINDOW_HEIGHT/2 - FONT_SIZE*1.5 - 20, ALLEGRO_ALIGN_CENTER, purposeStrung);
+        al_draw_text(tinyFont, color_gray, WINDOW_WIDTH/2, WINDOW_HEIGHT/2 + FONT_SIZE*1.5 - 20, ALLEGRO_ALIGN_CENTER, aux);
+
+        // Dibujando barra de volumen
+        al_draw_text(tinyFont, color_gray, WINDOW_WIDTH/3, WINDOW_HEIGHT/2 - 20, ALLEGRO_ALIGN_LEFT, "-"); // Menos
+        al_draw_text(tinyFont, color_gray, WINDOW_WIDTH-(WINDOW_WIDTH/3), WINDOW_HEIGHT/2 - 20, ALLEGRO_ALIGN_LEFT, "+"); // Max
+        al_draw_line((WINDOW_WIDTH/3)+20, WINDOW_HEIGHT/2 - 20 + 18, WINDOW_WIDTH-(WINDOW_WIDTH/3)-20, WINDOW_HEIGHT/2 - 20 + 18, color_gray, 3); // Barra horizontal
+        al_draw_line(indicatorPosition, WINDOW_HEIGHT/2 - 20 + 8, indicatorPosition, WINDOW_HEIGHT/2 - 20 + 28, color_gray, 3); // Indicador volumen (Se usa el porcentaje)
+        al_flip_display();
+    }
+
+    for(i=0; i<ALLEGRO_KEY_MAX; i++) //Se "levantan" todas las teclas
+        keys[i] = false;
+
+    al_stop_timer(timer);
+    al_destroy_bitmap(screenshot);
+}
+
 int name_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer)
 {
-    select_music(0);
+    select_music(0); //Musica de Menu
     bool done = false;
     char auxName[11];
     int namePosition=-1;
@@ -2330,7 +2756,7 @@ int name_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *time
 
 int main_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer)
 {
-    select_music(0);
+    select_music(0); //Musica de Menu
     al_stop_timer(timer);
     bool done = false;
     ALLEGRO_BITMAP *jugar_bmap = al_load_bitmap("src/mainMenu/960x640/jugar.png");
@@ -2402,14 +2828,14 @@ int pause_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *tim
     ALLEGRO_BITMAP *salir_bmap = al_load_bitmap("src/pauseMenu/960x640/salir.png");
 
     // Capturar la pantalla actual
-    ALLEGRO_BITMAP *screenshot = al_create_bitmap(WINDOW_COLS*SQUARE_SIDE, WINDOW_ROWS*SQUARE_SIDE);
+    ALLEGRO_BITMAP *screenshot = al_create_bitmap(WINDOW_WIDTH, WINDOW_HEIGHT);
     al_set_target_bitmap(screenshot);
     al_draw_bitmap(al_get_backbuffer(window), 0, 0, 0);
     al_set_target_backbuffer(al_get_current_display());
 
     //Dibujo inicial
     al_draw_bitmap(screenshot,0,0,0);
-    al_draw_filled_rectangle(0,0,al_get_display_width(window), al_get_display_height(window), al_map_rgba(0,0,0,200));
+    al_draw_filled_rectangle(0,0, WINDOW_WIDTH, WINDOW_HEIGHT, al_map_rgba(0,0,0,200));
     al_draw_bitmap(continuar_bmp,0,0,0);
     al_flip_display();
 
@@ -2462,7 +2888,7 @@ int pause_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *tim
     }
 
 
-
+    al_destroy_bitmap(screenshot);
     al_destroy_bitmap(continuar_bmp);
     al_destroy_bitmap(salir_bmap);
 }
@@ -2475,7 +2901,7 @@ int game_over(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *time
     ALLEGRO_BITMAP *gameOver_bmp = al_load_bitmap("src/gameOver/960x640/gameOver.png");
     ALLEGRO_BITMAP *gameOver1_bmp = al_load_bitmap("src/gameOver/960x640/gameOver1.png");
 
-    select_music(3);
+    select_music(3); // Musica de Derrota
 
     // Capturar la pantalla actual
     ALLEGRO_BITMAP *screenshot = al_create_bitmap(WINDOW_COLS*SQUARE_SIDE, WINDOW_ROWS*SQUARE_SIDE);
@@ -2537,7 +2963,7 @@ int win_mwnu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer
     ALLEGRO_BITMAP *win_bmp = al_load_bitmap("src/win//960x640/win.png");
     ALLEGRO_BITMAP *win0_bmp = al_load_bitmap("src/win/960x640/win0.png");
 
-    select_music(2);
+    select_music(2); // Musica de Victoria
 
     // Capturar la pantalla actual
     ALLEGRO_BITMAP *screenshot = al_create_bitmap(WINDOW_COLS*SQUARE_SIDE, WINDOW_ROWS*SQUARE_SIDE);
@@ -2609,8 +3035,6 @@ int level_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *tim
     int actualLevel = 1;
     int totalLevels = count_files_in_directory("./levels"); //MAX 8
     char auxLvl[3]; //Para dibujar números
-
-    select_music(0);
 
     //Dibujo inicial
     al_draw_bitmap(level0_bmap,0,0,0);
@@ -2745,6 +3169,166 @@ int level_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *tim
     al_destroy_bitmap(pergaminoSelected_bmap);
 }
 
+int config_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer)
+{
+    ALLEGRO_BITMAP *config_bmap = al_load_bitmap("src/config/config.png");
+    int i;
+    bool done = false;
+    int textx, texty, firstconfig, actualconfig, lastconfig;
+
+    textx=150;
+    texty=250;
+    actualconfig=0;
+    firstconfig=0;
+    lastconfig=7;
+
+    struct _configItems
+    {
+        char item[MAX_CONFIG_ITEMS][20];
+        char value[MAX_CONFIG_ITEMS][13];
+    } configItems;
+
+    /*Llenamos la informacion de configItems que nos servira para imprimir esta unformacion en pantalla*/
+    strcpy(configItems.item[0], "Izquierda");
+    get_key_name(gameConfig.LEFT, configItems.value[0]);
+
+    strcpy(configItems.item[1], "Derecha");
+    get_key_name(gameConfig.RIGHT, configItems.value[1]);
+
+    strcpy(configItems.item[2], "Arriba");
+    get_key_name(gameConfig.UP, configItems.value[2]);
+
+    strcpy(configItems.item[3], "Abajo");
+    get_key_name(gameConfig.DOWN, configItems.value[3]);
+
+    strcpy(configItems.item[4], "Activar poder");
+    get_key_name(gameConfig.POWER, configItems.value[4]);
+
+    strcpy(configItems.item[5], "Minimpa");
+    get_key_name(gameConfig.MINIMAP, configItems.value[5]);
+
+    strcpy(configItems.item[6], "Volumen musica");
+    sprintf(configItems.value[6], "%d%%", (int)(gameConfig.MUSICVOLUME*100));
+
+    strcpy(configItems.item[7], "Volumen SFX");
+    sprintf(configItems.value[7], "%d%%", (int)(gameConfig.SFXVOLUME*100));
+
+    //Dibujo inicial
+    al_draw_bitmap(config_bmap,0,0,0);
+
+    for(i=firstconfig; i<=lastconfig; i++)
+    {
+        if(i==actualconfig)
+        {
+            al_draw_text(tinyFont, color_white, textx, texty, ALLEGRO_ALIGN_LEFT, configItems.item[i]);
+            al_draw_text(tinyFont, color_white, WINDOW_WIDTH-textx, texty, ALLEGRO_ALIGN_RIGHT, configItems.value[i]);
+        }
+        else
+        {
+            al_draw_text(tinyFont, color_gray, textx, texty, ALLEGRO_ALIGN_LEFT, configItems.item[i]);
+            al_draw_text(tinyFont, color_gray, WINDOW_WIDTH-textx, texty, ALLEGRO_ALIGN_RIGHT, configItems.value[i]);
+        }
+        texty += TINY_FONT_SIZE*1.5;
+    }
+    // Posisiones iniciales de ubicacion del texto
+    textx=150;
+    texty=250;
+    al_flip_display();
+
+    // Cambio de configuraciones
+    while (!done)
+    {
+        al_wait_for_event(queue, ev); // Esperando a que ocurra un evento
+
+        if (ev->type == ALLEGRO_EVENT_DISPLAY_CLOSE) // Si es un cierre de la ventana
+        {
+            return 2;
+        }
+        else if(ev->type == ALLEGRO_EVENT_KEY_DOWN) //En caso de algún movimiento
+        {
+            if(ev->keyboard.keycode == ALLEGRO_KEY_TAB || ev->keyboard.keycode == ALLEGRO_KEY_RIGHT || ev->keyboard.keycode == ALLEGRO_KEY_DOWN)
+            {
+                actualconfig = (actualconfig+1) % (MAX_CONFIG_ITEMS);
+            }
+            else if(ev->keyboard.keycode == ALLEGRO_KEY_LEFT || ev->keyboard.keycode == ALLEGRO_KEY_UP)
+            {
+                actualconfig = (actualconfig-1);
+                if(actualconfig<0)
+                    actualconfig=lastconfig;
+            }
+            else if(ev->keyboard.keycode == ALLEGRO_KEY_SPACE || ev->keyboard.keycode == ALLEGRO_KEY_ENTER)
+            {
+                switch (actualconfig)
+                {
+                case 0:
+                    gameConfig.LEFT = select_key(configItems.item[actualconfig], queue, ev, timer);
+                    get_key_name(gameConfig.LEFT, configItems.value[0]);
+                    break;
+                case 1:
+                    gameConfig.RIGHT = select_key(configItems.item[actualconfig], queue, ev, timer);
+                    get_key_name(gameConfig.RIGHT, configItems.value[1]);
+                    break;
+                case 2:
+                    gameConfig.UP = select_key(configItems.item[actualconfig], queue, ev, timer);
+                    get_key_name(gameConfig.UP, configItems.value[2]);
+                    break;
+                case 3:
+                    gameConfig.DOWN = select_key(configItems.item[actualconfig], queue, ev, timer);
+                    get_key_name(gameConfig.DOWN, configItems.value[3]);
+                    break;
+                case 4:
+                    gameConfig.POWER = select_key(configItems.item[actualconfig], queue, ev, timer);
+                    get_key_name(gameConfig.POWER, configItems.value[4]);
+                    break;
+                case 5:
+                    gameConfig.MINIMAP = select_key(configItems.item[actualconfig], queue, ev, timer);
+                    get_key_name(gameConfig.MINIMAP, configItems.value[5]);
+                    break;
+                case 6:
+                    gameConfig.MUSICVOLUME = (float)select_number(0, 100, (int)(gameConfig.MUSICVOLUME*100), "Volumen Musica", queue, ev, timer) / 100;
+                    sprintf(configItems.value[6], "%d%%", (int)(gameConfig.MUSICVOLUME*100));
+                    set_music_volume(gameConfig.MUSICVOLUME);
+                    break;
+                case 7:
+                    gameConfig.SFXVOLUME = (float)select_number(0, 100, (int)(gameConfig.SFXVOLUME*100), "volumen SFX", queue, ev, timer) / 100;
+                    sprintf(configItems.value[7], "%d%%", (int)(gameConfig.MUSICVOLUME*100));
+                    break;
+                }
+            }
+            else if(ev->keyboard.keycode == ALLEGRO_KEY_ESCAPE)
+            {
+                done = true;
+            }
+        }
+
+        // Dibujo
+        al_draw_bitmap(config_bmap,0,0,0);
+
+        for(i=firstconfig; i<=lastconfig; i++)
+        {
+            if(i==actualconfig)
+            {
+                al_draw_text(tinyFont, color_white, textx, texty, ALLEGRO_ALIGN_LEFT, configItems.item[i]);
+                al_draw_text(tinyFont, color_white, WINDOW_WIDTH-textx, texty, ALLEGRO_ALIGN_RIGHT, configItems.value[i]);
+            }
+            else
+            {
+                al_draw_text(tinyFont, color_gray, textx, texty, ALLEGRO_ALIGN_LEFT, configItems.item[i]);
+                al_draw_text(tinyFont, color_gray, WINDOW_WIDTH-textx, texty, ALLEGRO_ALIGN_RIGHT, configItems.value[i]);
+            }
+            texty += TINY_FONT_SIZE*1.5;
+        }
+        //Posisiones iniciales de ubicacion del texto
+        textx=150;
+        texty=250;
+        al_flip_display();
+    }
+
+    al_destroy_bitmap(config_bmap);
+    whrite_config();
+    return 1;
+}
+
 int score_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer)
 {
     ALLEGRO_BITMAP *next_bmap = al_load_bitmap("src/score/next.png");
@@ -2760,8 +3344,6 @@ int score_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *tim
     int lastlevel = 0;
     int totalLevels = count_files_in_directory("./levels");
     char auxscore[5]; //Para dibujar números
-
-    select_music(0);
 
     //Dibujo inicial
     al_draw_bitmap(next_bmap,0,0,0);
@@ -2906,7 +3488,7 @@ int game(int board[MAX_ROWS][MAX_COLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVEN
     for(i=1;i<MAX_POWER_TYPES; i++)
         player1.power_hability[i]=false;
 
-    select_music(1);
+    select_music(1); // Musica de juego
     get_board(board, level_string);
     for(i=0; i<Game.gameRows; i++)
     for(j=0; j<Game.gameCols; j++)
@@ -2960,7 +3542,7 @@ int game(int board[MAX_ROWS][MAX_COLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVEN
                         break;
                 }
             }
-            else if(ev->keyboard.keycode == ALLEGRO_KEY_SPACE)
+            else if(ev->keyboard.keycode == gameConfig.POWER)
             {
                 if(ice.possible)
                     ice = power(board, player1);
@@ -2996,7 +3578,7 @@ int game(int board[MAX_ROWS][MAX_COLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVEN
             /*Limpiamos el Backbuffer*/
             al_clear_to_color(color_black);
 
-            if (keys[ALLEGRO_KEY_UP] || keys[ALLEGRO_KEY_W])
+            if (keys[gameConfig.UP])
             {
                 if(move_player(board, &player1, 'U') ==  1)
                 {
@@ -3005,7 +3587,7 @@ int game(int board[MAX_ROWS][MAX_COLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVEN
                     win = false;
                 }
             }
-            else if (keys[ALLEGRO_KEY_DOWN] || keys[ALLEGRO_KEY_S])
+            else if (keys[gameConfig.DOWN])
             {
                 if(move_player(board, &player1, 'D') ==  1)
                 {
@@ -3014,7 +3596,7 @@ int game(int board[MAX_ROWS][MAX_COLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVEN
                     win = false;
                 }
             }
-            else if (keys[ALLEGRO_KEY_LEFT] || keys[ALLEGRO_KEY_A])
+            else if (keys[gameConfig.LEFT])
             {
                 if(move_player(board, &player1, 'L') ==  1)
                 {
@@ -3023,7 +3605,7 @@ int game(int board[MAX_ROWS][MAX_COLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVEN
                     win = false;
                 }
             }
-            else if (keys[ALLEGRO_KEY_RIGHT] || keys[ALLEGRO_KEY_D])
+            else if (keys[gameConfig.RIGHT])
             {
                 if(move_player(board, &player1, 'R') ==  1)
                 {
@@ -3034,7 +3616,7 @@ int game(int board[MAX_ROWS][MAX_COLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVEN
             }
 
             // Minimapa
-            if (keys[ALLEGRO_KEY_M] || keys[ALLEGRO_KEY_Z])
+            if (keys[gameConfig.MINIMAP])
                 Game.minimap = true;
             else
                 Game.minimap = false;
