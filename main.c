@@ -296,7 +296,6 @@ int main()
     get_config(); // Configuracion
     read_score(); //Lee el Archivo de score para guardarlo en RAM
 
-    config_menu(event_queue, &ev, timer);
     name_menu(event_queue, &ev, timer);
     while (!done)
     {
@@ -312,8 +311,11 @@ int main()
                     free(Game.enemies);
                 }
                 break;
-            case 1: //Score
-                printf("SCORE\n");
+            case 1: // Configuracion
+                if(config_menu(event_queue,&ev,timer) == -1)
+                    done = true;
+                break;
+            case 2: // Score
                 if(score_menu(event_queue,&ev,timer) == -1)
                     done = true;
                 break;
@@ -1869,45 +1871,36 @@ void get_config()
     //Leyendo archivo
 
     // Izquierda
-    printf("Leyendo\n\n");
     fscanf(configFile, "%s", aux);
     fscanf(configFile, "%d", &gameConfig.LEFT);
 
     // Derecha
-    printf("Leyendo\n\n");
     fscanf(configFile, "%s", aux);
     fscanf(configFile, "%d", &gameConfig.RIGHT);
 
     // Arriba
-    printf("Leyendo\n\n");
     fscanf(configFile, "%s", aux);
     fscanf(configFile, "%d", &gameConfig.UP);
 
     // ABAJO
-    printf("Leyendo\n\n");
     fscanf(configFile, "%s", aux);
     fscanf(configFile, "%d", &gameConfig.DOWN);
 
     // Poder
-    printf("Leyendo\n\n");
     fscanf(configFile, "%s", aux);
     fscanf(configFile, "%d", &gameConfig.POWER);
 
     // Minimapa
-    printf("Leyendo\n\n");
     fscanf(configFile, "%s", aux);
     fscanf(configFile, "%d", &gameConfig.MINIMAP);
 
     // Volumen de la musica
-    printf("Leyendo\n\n");
     fscanf(configFile, "%s", aux);
     fscanf(configFile, "%f", &gameConfig.MUSICVOLUME);
 
     // Volumen Efectos de sonido
-    printf("Leyendo\n\n");
     fscanf(configFile, "%s", aux);
     fscanf(configFile, "%f", &gameConfig.SFXVOLUME);
-
 
 
     /* Imprimiendo leido
@@ -1936,7 +1929,7 @@ int i, j;
             printf("Error al abrir el archivo de configuracion\n");
         }
     else
-        printf("Configuracion abierta abierto\n");
+        printf("Configuracion abierta\n");
 
     //Escribiendo archivo
     fprintf(configFile, "LEFT %d\n", gameConfig.LEFT);
@@ -2762,6 +2755,7 @@ int main_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *time
     ALLEGRO_BITMAP *jugar_bmap = al_load_bitmap("src/mainMenu/960x640/jugar.png");
     ALLEGRO_BITMAP *score_bmap = al_load_bitmap("src/mainMenu/960x640/score.png");
     ALLEGRO_BITMAP *salir_bmap = al_load_bitmap("src/mainMenu/960x640/salir.png");
+    ALLEGRO_BITMAP *config_bmap = al_load_bitmap("src/mainMenu/960x640/configuracion.png");
 
     int actualImage = 0; //Jugar, Score, Salir
     al_draw_bitmap(jugar_bmap,0,0,0);
@@ -2779,13 +2773,13 @@ int main_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *time
         {
             if(ev->keyboard.keycode == ALLEGRO_KEY_TAB || ev->keyboard.keycode == ALLEGRO_KEY_DOWN || ev->keyboard.keycode == ALLEGRO_KEY_RIGHT)
             {
-                actualImage = (actualImage+1)%3;
+                actualImage = (actualImage+1)%4;
             }
             else if(ev->keyboard.keycode == ALLEGRO_KEY_UP || ev->keyboard.keycode == ALLEGRO_KEY_LEFT)
             {
-                actualImage = (actualImage-1)%3;
+                actualImage = (actualImage-1)%4;
                 if(actualImage == -1)
-                    actualImage = 2;
+                    actualImage = 3;
             }
             else if(ev->keyboard.keycode == ALLEGRO_KEY_SPACE || ev->keyboard.keycode == ALLEGRO_KEY_ENTER)
             {
@@ -2803,9 +2797,12 @@ int main_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *time
                 al_draw_bitmap(jugar_bmap,0,0,0);
                 break;
             case 1:
-                al_draw_bitmap(score_bmap,0,0,0);
+                al_draw_bitmap(config_bmap,0,0,0);
                 break;
             case 2:
+                al_draw_bitmap(score_bmap,0,0,0);
+                break;
+            case 3:
                 al_draw_bitmap(salir_bmap,0,0,0);
                 break;
         }
@@ -2817,15 +2814,17 @@ int main_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *time
     al_destroy_bitmap(jugar_bmap);
     al_destroy_bitmap(score_bmap);
     al_destroy_bitmap(salir_bmap);
+    al_destroy_bitmap(config_bmap);
 }
 
 int pause_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer)
 {
     al_stop_timer(timer);
     bool done = false;
-    int actualImage = 0; //Continuar, Salir
+    int actualImage = 0; //Continuar, Salir, Configuracion
     ALLEGRO_BITMAP *continuar_bmp = al_load_bitmap("src/pauseMenu/960x640/continuar.png");
     ALLEGRO_BITMAP *salir_bmap = al_load_bitmap("src/pauseMenu/960x640/salir.png");
+    ALLEGRO_BITMAP *configuracion_bmap = al_load_bitmap("src/pauseMenu/960x640/configuracion.png");
 
     // Capturar la pantalla actual
     ALLEGRO_BITMAP *screenshot = al_create_bitmap(WINDOW_WIDTH, WINDOW_HEIGHT);
@@ -2851,13 +2850,13 @@ int pause_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *tim
         {
             if(ev->keyboard.keycode == ALLEGRO_KEY_TAB || ev->keyboard.keycode == ALLEGRO_KEY_DOWN || ev->keyboard.keycode == ALLEGRO_KEY_RIGHT)
             {
-                actualImage = (actualImage+1)%2;
+                actualImage = (actualImage+1)%3;
             }
             else if(ev->keyboard.keycode == ALLEGRO_KEY_UP || ev->keyboard.keycode == ALLEGRO_KEY_LEFT)
             {
-                actualImage = (actualImage-1)%2;
+                actualImage = (actualImage-1)%3;
                 if(actualImage == -1)
-                    actualImage = 1;
+                    actualImage = 2;
             }
             else if(ev->keyboard.keycode == ALLEGRO_KEY_SPACE || ev->keyboard.keycode == ALLEGRO_KEY_ENTER)
             {
@@ -2871,17 +2870,19 @@ int pause_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *tim
             }
         }
 
+        // Dibujo
+        al_draw_bitmap(screenshot,0,0,0);
+        al_draw_filled_rectangle(0,0,al_get_display_width(window), al_get_display_height(window), al_map_rgba(0,0,0,200));
         switch (actualImage)
         {
             case 0:
-                al_draw_bitmap(screenshot,0,0,0);
-                al_draw_filled_rectangle(0,0,al_get_display_width(window), al_get_display_height(window), al_map_rgba(0,0,0,200));
                 al_draw_bitmap(continuar_bmp,0,0,0);
                 break;
             case 1:
-                al_draw_bitmap(screenshot,0,0,0);
-                al_draw_filled_rectangle(0,0,al_get_display_width(window), al_get_display_height(window), al_map_rgba(0,0,0,200));
                 al_draw_bitmap(salir_bmap,0,0,0);
+                break;
+            case 2:
+                al_draw_bitmap(configuracion_bmap,0,0,0);
                 break;
         }
         al_flip_display();
@@ -2891,6 +2892,7 @@ int pause_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *tim
     al_destroy_bitmap(screenshot);
     al_destroy_bitmap(continuar_bmp);
     al_destroy_bitmap(salir_bmap);
+    al_destroy_bitmap(configuracion_bmap);
 }
 
 int game_over(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer)
@@ -3242,7 +3244,7 @@ int config_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *ti
 
         if (ev->type == ALLEGRO_EVENT_DISPLAY_CLOSE) // Si es un cierre de la ventana
         {
-            return 2;
+            return -1;
         }
         else if(ev->type == ALLEGRO_EVENT_KEY_DOWN) //En caso de algún movimiento
         {
@@ -3534,12 +3536,20 @@ int game(int board[MAX_ROWS][MAX_COLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVEN
                     keys[i] = false;
                 switch (pause_menu(queue, ev, timer))
                 {
+                case -1:
+                    return -1;
+                    break;
+                case 1:
+                    return 1;
+                    break;
+                case 2:
+                    switch (config_menu(queue, ev, timer))
+                    {
                     case -1:
                         return -1;
                         break;
-                    case 1:
-                        return 1;
-                        break;
+                    }
+                    break;
                 }
             }
             else if(ev->keyboard.keycode == gameConfig.POWER)
