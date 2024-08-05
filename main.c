@@ -198,7 +198,8 @@ void select_music(int code);
 void set_music_volume(float volume);
 void get_config();
 void whrite_config();
-void get_key_name();
+void get_key_name(int x, char *aux);
+int save_map(int board[MAX_ROWS][MAX_COLS]);
 
 //Funciones gráficas
 void draw_board_rectangle(int fila, int columna, ALLEGRO_COLOR color);
@@ -210,11 +211,13 @@ void draw_board(int board[MAX_ROWS][MAX_COLS]);
 void draw_HUD();
 
 /*Partes*/
+int map_generator(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
 int select_key(char *purpose, ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
 int select_number(int min, int max, int def, char *purpose, ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
 int name_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
 int main_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
 int pause_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
+int mapCreator_pause_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
 int game_over(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
 int win_mwnu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
 int level_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer);
@@ -296,7 +299,9 @@ int main()
     get_config(); // Configuracion
     read_score(); //Lee el Archivo de score para guardarlo en RAM
 
-    name_menu(event_queue, &ev, timer);
+    if(name_menu(event_queue, &ev, timer)==-1)
+        done = true;
+
     while (!done)
     {
         switch (main_menu(event_queue, &ev, timer))
@@ -310,6 +315,8 @@ int main()
                     free(Game.normalObjects);
                     free(Game.enemies);
                 }
+                else if(level==-1)
+                    done = true;
                 break;
             case 1: // Configuracion
                 if(config_menu(event_queue,&ev,timer) == -1)
@@ -1128,8 +1135,8 @@ int get_board(int board[MAX_ROWS][MAX_COLS], char numero[3])
     else
         printf("Archivo abierto\n");
 
-    fscanf(game, "%d", &Game.gameRows); //Leyendo columnas
-    fscanf(game, "%d", &Game.gameCols); //Leyendo filas
+    fscanf(game, "%d", &Game.gameRows); //Leyendo filas
+    fscanf(game, "%d", &Game.gameCols); //Leyendo columnas
 
     for(i=0; i<Game.gameRows; i++)
     for(j=0; j<Game.gameCols; j++)
@@ -1919,7 +1926,7 @@ void get_config()
 
 void whrite_config()
 {
-int i, j;
+    int i, j;
     char aux[7];
     FILE *configFile;
 
@@ -1945,7 +1952,8 @@ int i, j;
     return;
 }
 
-void get_key_name(int x, char *aux) {
+void get_key_name(int x, char *aux)
+{
     switch (x) {
         case 1: sprintf(aux, "A"); break;
         case 2: sprintf(aux, "B"); break;
@@ -2106,6 +2114,37 @@ void get_key_name(int x, char *aux) {
     }
 }
 
+int save_map(int board[MAX_ROWS][MAX_COLS])
+{
+    int levelNumbrer = count_files_in_directory("./levels")+1;
+    int i, j;
+    char levelPath[30];
+    FILE *mapFile;
+    sprintf(levelPath, "./levels/level%02d.txt", levelNumbrer);
+
+    //Abriendo archivo
+    if ((mapFile = fopen(levelPath, "w"))==NULL)
+        {
+            printf("Error al abrir el archivo de juego\n");
+            return 1;
+        }
+    else
+        printf("Archivo de juego abierto\n");
+
+    //Escribiendo archivo
+    fprintf(mapFile, "%d %d\n",Game.gameRows, Game.gameCols); //Filas y columnas
+
+    for(i=0; i<Game.gameRows; i++)
+    {
+        for(j=0; j<Game.gameCols; j++)
+            fprintf(mapFile, "%02d ", board[i][j]);
+        fprintf(mapFile, "\n");
+    }
+
+    fclose(mapFile);
+    return 0;
+}
+
 // FUnciones gráficas
 void draw_board_rectangle(int fila, int columna, ALLEGRO_COLOR color){
     al_draw_filled_rectangle((columna * SQUARE_SIDE), (fila * SQUARE_SIDE), ((columna + 1) * SQUARE_SIDE), ((fila + 1) * SQUARE_SIDE), color);
@@ -2131,7 +2170,7 @@ void draw_minimap(int board[MAX_ROWS][MAX_COLS])
     {
         faces_bmp = al_load_bitmap("./src/sprites/enemies/miniFaces.png");
         pnjFace_bmp = al_load_bitmap("./src/sprites/pnj/face.png");
-        miniLado=32;
+        miniLado=21;
         starty = (WINDOW_HEIGHT-(miniLado*Game.gameRows))/2;
         startx = (WINDOW_WIDTH-(miniLado*Game.gameCols))/2;
 
@@ -2554,6 +2593,365 @@ void draw_HUD()
 }
 
 /*Partes*/
+int map_generator(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer)
+{
+    bool done = false;
+    int cursorx, cursory;
+    int i, j;
+    int actualRow = 0, actualCol = 0, actualCode = 81;
+    int characterType = 1, normalObjectType = 21, spetialObjectType = 31, obstacleType = 81;
+    char actualCategory='O';
+    int categoriesx = WINDOW_WIDTH/2 - 128;
+    int categoriesy = WINDOW_HEIGHT-64-5;
+    int board[MAX_ROWS][MAX_COLS];
+    for(i=0; i<MAX_ROWS; i++)
+    for(j=0; j<MAX_COLS; j++)
+        board[i][j]=0;
+
+    // Personaje
+    ALLEGRO_BITMAP *pnj0_bmp = al_load_bitmap("./src/sprites/pnj/spritesheet.png");
+    ALLEGRO_BITMAP *pnj_bmp = al_create_sub_bitmap(pnj0_bmp, 0, 0, 64, 64); //Frame del pnj que usaremos en el mapa
+
+    // Enemigos
+    ALLEGRO_BITMAP *enemy00_bmp = al_load_bitmap("./src/sprites/enemies/enemy0.png");
+    ALLEGRO_BITMAP *enemy0_bmp = al_create_sub_bitmap(enemy00_bmp, 0, 128, 64, 64); //Frame del Enemigo tipo 0 que usaremos en el mapa
+
+    ALLEGRO_BITMAP *enemy10_bmp = al_load_bitmap("./src/sprites/enemies/enemy1.png");
+    ALLEGRO_BITMAP *enemy1_bmp = al_create_sub_bitmap(enemy10_bmp, 0, 128, 64, 64); //Frame del Enemigo tipo 0 que usaremos en el mapa
+
+    ALLEGRO_BITMAP *enemy20_bmp = al_load_bitmap("./src/sprites/enemies/enemy2.png");
+    ALLEGRO_BITMAP *enemy2_bmp = al_create_sub_bitmap(enemy20_bmp, 0, 128, 64, 64); //Frame del Enemigo tipo 0 que usaremos en el mapa
+
+    // Arbusto
+    ALLEGRO_BITMAP *bush0_bmp = al_load_bitmap("./src/sprites/board/bush.png");
+    ALLEGRO_BITMAP *bush_bmp = al_create_sub_bitmap(bush0_bmp, 128, 0, 64, 64); //Frame de Arbusto que usaremos en el mapa
+
+    // Roca
+    ALLEGRO_BITMAP *rock0_bmp = al_load_bitmap("./src/sprites/board/rock.png");
+    ALLEGRO_BITMAP *rock_bmp = al_create_sub_bitmap(rock0_bmp, 128, 0, 64, 64); //Frame de Roca que usaremos en el mapa
+
+    // Raiz
+    ALLEGRO_BITMAP *root_bmp = al_load_bitmap("./src/sprites/board/root.png");
+
+    //Flowers
+    ALLEGRO_BITMAP *flowers_bmp = al_load_bitmap("./src/sprites/board/flowers.png");
+    ALLEGRO_BITMAP *flower1_bmp = al_create_sub_bitmap(flowers_bmp, 0, 0, 64, 64); //Frame de Flores que usaremos en el mapa
+    ALLEGRO_BITMAP *flower2_bmp = al_create_sub_bitmap(flowers_bmp, 64, 0, 64, 64); //Frame de Flores que usaremos en el mapa
+    ALLEGRO_BITMAP *flower3_bmp = al_create_sub_bitmap(flowers_bmp, 128, 0, 64, 64); //Frame de Flores que usaremos en el mapa
+
+    //Objetos especiales
+    ALLEGRO_BITMAP *boots_bmp = al_load_bitmap("./src/sprites/board/specialObjects/boots.png");
+    ALLEGRO_BITMAP *bow_bmp = al_load_bitmap("./src/sprites/board/specialObjects/bow.png");
+    ALLEGRO_BITMAP *potion_bmp = al_load_bitmap("./src/sprites/board/specialObjects/pocion.png");
+    ALLEGRO_BITMAP *rockWound_bmp = al_load_bitmap("./src/sprites/board/specialObjects/rock_wound.png");
+
+    // Capturar la pantalla actual
+    ALLEGRO_BITMAP *screenshot = al_create_bitmap(WINDOW_WIDTH, WINDOW_HEIGHT);
+    al_set_target_bitmap(screenshot);
+    al_draw_bitmap(al_get_backbuffer(window), 0, 0, 0);
+    al_set_target_backbuffer(al_get_current_display());
+
+    al_draw_bitmap(screenshot,0,0,0);
+    Game.gameRows = select_number(10, 30, 11, "Filas mapa", queue, ev, timer);
+    al_draw_bitmap(screenshot,0,0,0);
+    Game.gameCols = select_number(15, 30, 16, "Columnas mapa", queue, ev, timer);
+
+    // Inicializa mapa en 0s
+    for(i=0; i<Game.gameRows; i++)
+    for(j=0; j<Game.gameRows; j++)
+        board[i][j]=0;
+
+    /* Crear bitmap para el fondo del tablero */
+    board_bitmap = al_create_bitmap(Game.gameCols * SQUARE_SIDE, Game.gameRows * SQUARE_SIDE);
+    draw_background(board_bitmap);
+
+    al_draw_bitmap(board_bitmap, 0, 0, 0);
+    al_draw_rectangle(SQUARE_SIDE*actualCol, SQUARE_SIDE*actualRow, SQUARE_SIDE*actualCol+64, SQUARE_SIDE*actualRow+64, color_gray, 1);
+    al_flip_display();
+
+    //Definiendo comienzo en X
+    if((cursorx + WINDOW_WIDTH) > (Game.gameCols*SQUARE_SIDE))
+        Game.mapColStart = (Game.gameCols * SQUARE_SIDE) - WINDOW_WIDTH;
+    else
+        Game.mapColStart = cursorx;
+    //Definiendo comienzo en Y
+    if((cursory + WINDOW_HEIGHT) > (Game.gameRows*SQUARE_SIDE))
+        Game.mapRowStart = (Game.gameRows * SQUARE_SIDE) - WINDOW_HEIGHT;
+    else
+        Game.mapRowStart = cursory;
+    cursorx = SQUARE_SIDE*actualCol;
+    cursory = SQUARE_SIDE*actualRow;
+    Game.startSquare.col = Game.mapColStart / SQUARE_SIDE;
+    Game.endSquare.col = (Game.mapColStart + WINDOW_WIDTH) / SQUARE_SIDE;
+    Game.startSquare.row = Game.mapRowStart / SQUARE_SIDE;
+    Game.endSquare.row = (Game.mapRowStart + WINDOW_HEIGHT) /SQUARE_SIDE;
+
+    while(!done)
+    {
+        al_wait_for_event(queue, ev); /* Esperando a que ocurra un evento */
+
+        if (ev->type == ALLEGRO_EVENT_DISPLAY_CLOSE) /* Si es un cierre de la ventana */
+        {
+            return -1;
+        }
+        if (ev->type == ALLEGRO_EVENT_KEY_DOWN)
+        {
+            switch (ev->keyboard.keycode)
+            {
+            case ALLEGRO_KEY_ESCAPE:
+                switch (mapCreator_pause_menu(queue, ev, timer))
+                {
+                case -1:
+                    return -1;
+                    break;
+                case 1:
+                    if(save_map(board)==0)
+                        done = true;
+                    break;
+                case 2:
+                    if(config_menu(queue, ev, timer)==-1)
+                        return -1;
+                    break;
+                }
+
+                break;
+            case ALLEGRO_KEY_M:
+                if(Game.minimap)
+                    Game.minimap = false;
+                else
+                    Game.minimap = true;
+            break;
+            case ALLEGRO_KEY_ENTER: board[actualRow][actualCol] = actualCode; break;
+            case ALLEGRO_KEY_SPACE: board[actualRow][actualCol] = actualCode; break;
+            case ALLEGRO_KEY_DELETE: board[actualRow][actualCol] = 0    ; break;
+            case ALLEGRO_KEY_BACKSPACE: board[actualRow][actualCol] = 0    ; break;
+            case ALLEGRO_KEY_RIGHT:
+                if(actualCol+1 < Game.gameCols)
+                {
+                    actualCol++;
+                    cursorx = actualCol*SQUARE_SIDE;
+                }
+                break;
+            case ALLEGRO_KEY_LEFT:
+                if(actualCol-1 >= 0)
+                {
+                    actualCol--;
+                    cursorx = actualCol*SQUARE_SIDE;
+                }
+                break;
+            case ALLEGRO_KEY_DOWN:
+                if(actualRow+1 < Game.gameRows)
+                {
+                    actualRow++;
+                    cursory = actualRow*SQUARE_SIDE;
+                }
+                break;
+            case ALLEGRO_KEY_UP:
+                if(actualRow-1 >= 0)
+                {
+                    actualRow--;
+                    cursory = actualRow*SQUARE_SIDE;
+                }
+                break;
+            // Casos para seleccionar categorias
+            case ALLEGRO_KEY_0: actualCode = 0; break;
+            case ALLEGRO_KEY_O: actualCode = obstacleType; actualCategory='O'; break;
+            case ALLEGRO_KEY_N: actualCode = normalObjectType; actualCategory='N'; break;
+            case ALLEGRO_KEY_C: actualCode = characterType; actualCategory='C'; break;
+            case ALLEGRO_KEY_S: actualCode = spetialObjectType; actualCategory='S'; break;
+            // Dentro de la categoria para seleccionar tipo
+            case ALLEGRO_KEY_1:
+                switch (actualCategory)
+                {
+                case 'C': actualCode = 1; characterType=1; break;
+                case 'N': actualCode = 21; normalObjectType=21;  break;
+                case 'S': actualCode = 31; spetialObjectType=31; break;
+                case 'O': actualCode = 81; obstacleType=81; break;
+                }
+                break;
+            case ALLEGRO_KEY_2:
+                switch (actualCategory)
+                {
+                case 'C': actualCode = 2; characterType=2; break;
+                case 'N': actualCode = 22; normalObjectType=22;  break;
+                case 'S': actualCode = 32; spetialObjectType=32; break;
+                case 'O': actualCode = 44; obstacleType=44; break;
+                }
+                break;
+            case ALLEGRO_KEY_3:
+                switch (actualCategory)
+                {
+                case 'C': actualCode = 3; characterType=3; break;
+                case 'N': actualCode = 23; normalObjectType=23;  break;
+                case 'S': actualCode = 33; spetialObjectType=33; break;
+                case 'O': actualCode = 48; obstacleType=48; break;
+                }
+                break;
+            case ALLEGRO_KEY_4:
+                switch (actualCategory)
+                {
+                case 'C': actualCode = 4; characterType=4; break;
+                case 'S': actualCode = 34; spetialObjectType=34; break;
+                }
+                break;
+            }
+        }
+
+        //Definiendo comienzo en X
+        if((cursorx + WINDOW_WIDTH) > (Game.gameCols*SQUARE_SIDE))
+            Game.mapColStart = (Game.gameCols * SQUARE_SIDE) - WINDOW_WIDTH;
+        else
+            Game.mapColStart = cursorx;
+        //Definiendo comienzo en Y
+        if((cursory + WINDOW_HEIGHT) > (Game.gameRows*SQUARE_SIDE))
+            Game.mapRowStart = (Game.gameRows * SQUARE_SIDE) - WINDOW_HEIGHT;
+        else
+            Game.mapRowStart = cursory;
+        cursorx = SQUARE_SIDE*actualCol;
+        cursory = SQUARE_SIDE*actualRow;
+        Game.startSquare.col = Game.mapColStart / SQUARE_SIDE;
+        Game.endSquare.col = (Game.mapColStart + WINDOW_WIDTH) / SQUARE_SIDE;
+        Game.startSquare.row = Game.mapRowStart / SQUARE_SIDE;
+        Game.endSquare.row = (Game.mapRowStart + WINDOW_HEIGHT) /SQUARE_SIDE;
+
+        // Dibujo de cosas en el mapa
+        al_draw_bitmap_region(board_bitmap, Game.mapColStart, Game.mapRowStart, WINDOW_WIDTH, WINDOW_HEIGHT, 0,0, 0);
+        for(i=Game.startSquare.row; i<=Game.endSquare.row; i++)
+        for(j=Game.startSquare.col; j<=Game.endSquare.col; j++)
+        {
+            switch (board[i][j])
+            {
+            case 1:
+                    al_draw_bitmap(pnj_bmp, j*SQUARE_SIDE - Game.mapColStart, i*SQUARE_SIDE - Game.mapRowStart, 0);
+                break;
+            case 2:
+                    al_draw_bitmap(enemy0_bmp, j*SQUARE_SIDE - Game.mapColStart, i*SQUARE_SIDE - Game.mapRowStart, 0);
+                break;
+            case 3:
+                    al_draw_bitmap(enemy1_bmp, j*SQUARE_SIDE - Game.mapColStart, i*SQUARE_SIDE - Game.mapRowStart, 0);
+                break;
+            case 4:
+                    al_draw_bitmap(enemy2_bmp, j*SQUARE_SIDE - Game.mapColStart, i*SQUARE_SIDE - Game.mapRowStart, 0);
+                break;
+            case 21:
+                    al_draw_bitmap(flower1_bmp, j*SQUARE_SIDE - Game.mapColStart, i*SQUARE_SIDE - Game.mapRowStart, 0);
+                break;
+            case 22:
+                    al_draw_bitmap(flower2_bmp, j*SQUARE_SIDE - Game.mapColStart, i*SQUARE_SIDE - Game.mapRowStart, 0);
+                break;
+            case 23:
+                    al_draw_bitmap(flower3_bmp, j*SQUARE_SIDE - Game.mapColStart, i*SQUARE_SIDE - Game.mapRowStart, 0);
+                break;
+            case 31:
+                    al_draw_bitmap(boots_bmp, j*SQUARE_SIDE - Game.mapColStart, i*SQUARE_SIDE - Game.mapRowStart, 0);
+                break;
+            case 32:
+                    al_draw_bitmap(bow_bmp, j*SQUARE_SIDE - Game.mapColStart, i*SQUARE_SIDE - Game.mapRowStart, 0);
+                break;
+            case 33:
+                    al_draw_bitmap(potion_bmp, j*SQUARE_SIDE - Game.mapColStart, i*SQUARE_SIDE - Game.mapRowStart, 0);
+                break;
+            case 34:
+                    al_draw_bitmap(rockWound_bmp, j*SQUARE_SIDE - Game.mapColStart, i*SQUARE_SIDE - Game.mapRowStart, 0);
+                break;
+            case 44:
+                    al_draw_bitmap(bush_bmp, j*SQUARE_SIDE - Game.mapColStart, i*SQUARE_SIDE - Game.mapRowStart, 0);
+                break;
+            case 48:
+                    al_draw_bitmap(rock_bmp, j*SQUARE_SIDE - Game.mapColStart, i*SQUARE_SIDE - Game.mapRowStart, 0);
+                break;
+            case 81:
+                    al_draw_bitmap(root_bmp, j*SQUARE_SIDE - Game.mapColStart, i*SQUARE_SIDE - Game.mapRowStart, 0);
+                break;
+            }
+        }
+        al_draw_rectangle(SQUARE_SIDE*actualCol - Game.mapColStart, SQUARE_SIDE*actualRow - Game.mapRowStart, SQUARE_SIDE*actualCol+64 - Game.mapColStart, SQUARE_SIDE*actualRow+64 - Game.mapRowStart, color_gray, 1);
+        draw_minimap(board);
+
+        // Dibujo categorias
+
+        // Obstaculos
+        if(actualCategory=='O') // Dibujamos fondo del recuadro si la categoria esta activa
+            al_draw_filled_rectangle(categoriesx, categoriesy, categoriesx + 64, categoriesy + 64, al_map_rgba(0,0,0,50));
+        al_draw_rectangle(categoriesx-1, categoriesy-1, categoriesx + 66, categoriesy + 66, color_gray, 1); // Borde del cuadro
+        switch (obstacleType)
+        {
+        case 81: al_draw_bitmap(root_bmp, categoriesx, categoriesy, 0); break;
+        case 44: al_draw_bitmap(bush_bmp, categoriesx, categoriesy, 0); break;
+        case 48: al_draw_bitmap(rock_bmp, categoriesx, categoriesy, 0); break;
+        }
+        al_draw_text(tinyFont, color_gray, categoriesx+64, categoriesy, ALLEGRO_ALIGN_RIGHT, "O");
+        categoriesx += 64;
+
+        // Personajes
+        if(actualCategory=='C') // Dibujamos fondo del recuadro si la categoria esta activa
+            al_draw_filled_rectangle(categoriesx, categoriesy, categoriesx + 64, categoriesy + 64, al_map_rgba(0,0,0,50));
+        al_draw_rectangle(categoriesx-1, categoriesy-1, categoriesx + 66, categoriesy + 66, color_gray, 1); // Borde del cuadro
+        switch (characterType)
+        {
+        case 1: al_draw_bitmap(pnj_bmp, categoriesx, categoriesy, 0); break;
+        case 2: al_draw_bitmap(enemy0_bmp, categoriesx, categoriesy, 0); break;
+        case 3: al_draw_bitmap(enemy1_bmp, categoriesx, categoriesy, 0); break;
+        case 4: al_draw_bitmap(enemy2_bmp, categoriesx, categoriesy, 0); break;
+        }
+        al_draw_text(tinyFont, color_gray, categoriesx+64, categoriesy, ALLEGRO_ALIGN_RIGHT, "C");
+        categoriesx += 64;
+
+        // Objetos normales
+        if(actualCategory=='N') // Dibujamos fondo del recuadro si la categoria esta activa
+            al_draw_filled_rectangle(categoriesx, categoriesy, categoriesx + 64, categoriesy + 64, al_map_rgba(0,0,0,50));
+        al_draw_rectangle(categoriesx-1, categoriesy-1, categoriesx + 66, categoriesy + 66, color_gray, 1); // Borde del cuadro
+        switch (normalObjectType)
+        {
+        case 21: al_draw_bitmap(flower1_bmp, categoriesx, categoriesy, 0); break;
+        case 22: al_draw_bitmap(flower2_bmp, categoriesx, categoriesy, 0); break;
+        case 23: al_draw_bitmap(flower3_bmp, categoriesx, categoriesy, 0); break;
+        }
+        al_draw_text(tinyFont, color_gray, categoriesx+64, categoriesy, ALLEGRO_ALIGN_RIGHT, "N");
+        categoriesx += 64;
+
+         // Objetos especiales
+        if(actualCategory=='S') // Dibujamos fondo del recuadro si la categoria esta activa
+            al_draw_filled_rectangle(categoriesx, categoriesy, categoriesx + 64, categoriesy + 64, al_map_rgba(0,0,0,50));
+        al_draw_rectangle(categoriesx-1, categoriesy-1, categoriesx + 66, categoriesy + 66, color_gray, 1); // Borde del cuadro
+        switch (spetialObjectType)
+        {
+        case 31: al_draw_bitmap(boots_bmp, categoriesx, categoriesy, 0); break;
+        case 32: al_draw_bitmap(bow_bmp, categoriesx, categoriesy, 0); break;
+        case 33: al_draw_bitmap(potion_bmp, categoriesx, categoriesy, 0); break;
+        case 34: al_draw_bitmap(rockWound_bmp, categoriesx, categoriesy, 0); break;
+        }
+        al_draw_text(tinyFont, color_gray, categoriesx+64, categoriesy, ALLEGRO_ALIGN_RIGHT, "S");
+        categoriesx += 64;
+
+
+        categoriesx = WINDOW_WIDTH/2 - 128;
+        al_flip_display();
+    }
+
+    al_destroy_bitmap(pnj0_bmp);
+    al_destroy_bitmap(pnj_bmp);
+    al_destroy_bitmap(bush0_bmp);
+    al_destroy_bitmap(bush_bmp);
+    al_destroy_bitmap(rock0_bmp);
+    al_destroy_bitmap(rock_bmp);
+    al_destroy_bitmap(flower1_bmp);
+    al_destroy_bitmap(flower2_bmp);
+    al_destroy_bitmap(flower3_bmp);
+    al_destroy_bitmap(root_bmp);
+    al_destroy_bitmap(boots_bmp);
+    al_destroy_bitmap(bow_bmp);
+    al_destroy_bitmap(potion_bmp);
+    al_destroy_bitmap(rockWound_bmp);
+    al_destroy_bitmap(enemy00_bmp);
+    al_destroy_bitmap(enemy0_bmp);
+    al_destroy_bitmap(enemy10_bmp);
+    al_destroy_bitmap(enemy1_bmp);
+    al_destroy_bitmap(enemy20_bmp);
+    al_destroy_bitmap(enemy2_bmp);
+    return 0;
+}
+
 int select_key(char *purpose, ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer)
 {
     bool done = false;
@@ -2620,7 +3018,7 @@ int select_number(int min, int max, int def, char *purpose, ALLEGRO_EVENT_QUEUE 
     al_set_target_backbuffer(al_get_current_display());
 
     //Dibujo inicial
-    percent = ((float)def / (float)(max-min));
+    percent = ((float)(def-min) / (float)(max-min));
     indicatorPosition = (WINDOW_WIDTH-(WINDOW_WIDTH/3)-20 - offset)*percent + offset;
     sprintf(aux, "%03d", def);
     al_draw_bitmap(screenshot,0,0,0);
@@ -2673,7 +3071,7 @@ int select_number(int min, int max, int def, char *purpose, ALLEGRO_EVENT_QUEUE 
         }
 
         //Dibujo
-        percent = ((float)def / (float)(max-min));
+        percent = ((float)(def-min) / (float)(max-min));
         indicatorPosition = (WINDOW_WIDTH-(WINDOW_WIDTH/3)-20 - offset)*percent + offset;
         sprintf(aux, "%03d", def);
         al_draw_bitmap(screenshot,0,0,0);
@@ -2767,7 +3165,7 @@ int main_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *time
 
         if (ev->type == ALLEGRO_EVENT_DISPLAY_CLOSE) /*Si es un cierre de la ventana*/
         {
-            return 2;
+            return -1;
         }
         else if(ev->type == ALLEGRO_EVENT_KEY_DOWN)
         {
@@ -2892,6 +3290,84 @@ int pause_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *tim
     al_destroy_bitmap(screenshot);
     al_destroy_bitmap(continuar_bmp);
     al_destroy_bitmap(salir_bmap);
+    al_destroy_bitmap(configuracion_bmap);
+}
+
+int mapCreator_pause_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer)
+{
+    al_stop_timer(timer);
+    bool done = false;
+    int actualImage = 0; //Continuar, Guardar, Configuracion
+    ALLEGRO_BITMAP *continuar_bmp = al_load_bitmap("src/menuCreator/continuar.png");
+    ALLEGRO_BITMAP *guardar_bmap = al_load_bitmap("src/menuCreator/guardar.png");
+    ALLEGRO_BITMAP *configuracion_bmap = al_load_bitmap("src/menuCreator/configuracion.png");
+
+    // Capturar la pantalla actual
+    ALLEGRO_BITMAP *screenshot = al_create_bitmap(WINDOW_WIDTH, WINDOW_HEIGHT);
+    al_set_target_bitmap(screenshot);
+    al_draw_bitmap(al_get_backbuffer(window), 0, 0, 0);
+    al_set_target_backbuffer(al_get_current_display());
+
+    //Dibujo inicial
+    al_draw_bitmap(screenshot,0,0,0);
+    al_draw_filled_rectangle(0,0, WINDOW_WIDTH, WINDOW_HEIGHT, al_map_rgba(0,0,0,200));
+    al_draw_bitmap(continuar_bmp,0,0,0);
+    al_flip_display();
+
+    while (!done)
+    {
+        al_wait_for_event(queue, ev); /*Esperando a que ocurra un evento*/
+
+        if (ev->type == ALLEGRO_EVENT_DISPLAY_CLOSE) /*Si es un cierre de la ventana*/
+        {
+            return -1;
+        }
+        else if(ev->type == ALLEGRO_EVENT_KEY_DOWN)
+        {
+            if(ev->keyboard.keycode == ALLEGRO_KEY_TAB || ev->keyboard.keycode == ALLEGRO_KEY_DOWN || ev->keyboard.keycode == ALLEGRO_KEY_RIGHT)
+            {
+                actualImage = (actualImage+1)%3;
+            }
+            else if(ev->keyboard.keycode == ALLEGRO_KEY_UP || ev->keyboard.keycode == ALLEGRO_KEY_LEFT)
+            {
+                actualImage = (actualImage-1)%3;
+                if(actualImage == -1)
+                    actualImage = 2;
+            }
+            else if(ev->keyboard.keycode == ALLEGRO_KEY_SPACE || ev->keyboard.keycode == ALLEGRO_KEY_ENTER)
+            {
+                al_resume_timer(timer);
+                return actualImage;
+            }
+            else if(ev->keyboard.keycode == ALLEGRO_KEY_ESCAPE)
+            {
+                al_resume_timer(timer);
+                return 0;
+            }
+        }
+
+        // Dibujo
+        al_draw_bitmap(screenshot,0,0,0);
+        al_draw_filled_rectangle(0,0,al_get_display_width(window), al_get_display_height(window), al_map_rgba(0,0,0,200));
+        switch (actualImage)
+        {
+            case 0:
+                al_draw_bitmap(continuar_bmp,0,0,0);
+                break;
+            case 1:
+                al_draw_bitmap(guardar_bmap,0,0,0);
+                break;
+            case 2:
+                al_draw_bitmap(configuracion_bmap,0,0,0);
+                break;
+        }
+        al_flip_display();
+    }
+
+
+    al_destroy_bitmap(screenshot);
+    al_destroy_bitmap(continuar_bmp);
+    al_destroy_bitmap(guardar_bmap);
     al_destroy_bitmap(configuracion_bmap);
 }
 
@@ -3027,7 +3503,8 @@ int win_mwnu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer
 int level_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer)
 {
     ALLEGRO_BITMAP *level_bmap = al_load_bitmap("src/LevelSelection/levelSelection.png");
-    ALLEGRO_BITMAP *level0_bmap = al_load_bitmap("src/LevelSelection/levelSelection0.png");
+    ALLEGRO_BITMAP *menu_bmap = al_load_bitmap("src/LevelSelection/menu.png");
+    ALLEGRO_BITMAP *create_bmap = al_load_bitmap("src/LevelSelection/create.png");
     ALLEGRO_BITMAP *pergamino_bmap = al_load_bitmap("src/LevelSelection/pergamino.png");
     ALLEGRO_BITMAP *pergaminoSelected_bmap = al_load_bitmap("src/LevelSelection/pergaminoSelected.png");
     int i;
@@ -3039,7 +3516,7 @@ int level_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *tim
     char auxLvl[3]; //Para dibujar números
 
     //Dibujo inicial
-    al_draw_bitmap(level0_bmap,0,0,0);
+    al_draw_bitmap(level_bmap,0,0,0);
     for(i=1; i<=totalLevels; i++)
     {
         sprintf(auxLvl, "%02d", i);
@@ -3087,42 +3564,43 @@ int level_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *tim
 
         if (ev->type == ALLEGRO_EVENT_DISPLAY_CLOSE) /* Si es un cierre de la ventana */
         {
-            return 2;
+            return -1;
         }
         else if(ev->type == ALLEGRO_EVENT_KEY_DOWN) //En caso de algún movimiento
         {
-            if(ev->keyboard.keycode == ALLEGRO_KEY_TAB || ev->keyboard.keycode == ALLEGRO_KEY_RIGHT)
+            if(ev->keyboard.keycode == ALLEGRO_KEY_TAB || ev->keyboard.keycode == ALLEGRO_KEY_RIGHT || ev->keyboard.keycode == ALLEGRO_KEY_DOWN)
             {
-                actualLevel = (actualLevel+1) % (totalLevels+1);
+                actualLevel = (actualLevel+1) % (totalLevels+2);
             }
-            else if(ev->keyboard.keycode == ALLEGRO_KEY_LEFT)
+            else if(ev->keyboard.keycode == ALLEGRO_KEY_LEFT || ev->keyboard.keycode == ALLEGRO_KEY_UP)
             {
                 actualLevel = (actualLevel-1);
                 if(actualLevel<0)
-                    actualLevel=0;
-            }
-            else if(ev->keyboard.keycode == ALLEGRO_KEY_DOWN)
-            {
-                actualLevel = (actualLevel+4) % (totalLevels+1);
-            }
-            else if(ev->keyboard.keycode == ALLEGRO_KEY_UP)
-            {
-                actualLevel = (actualLevel-4);
-                if(actualLevel<0)
-                    actualLevel=0;
+                    actualLevel=totalLevels+1;
             }
             else if(ev->keyboard.keycode == ALLEGRO_KEY_SPACE || ev->keyboard.keycode == ALLEGRO_KEY_ENTER)
             {
-                Game.levelNumber = actualLevel;
-                return actualLevel;
+                if(actualLevel < totalLevels+1)
+                {
+                    Game.levelNumber = actualLevel;
+                    return actualLevel;
+                }
+                else
+                {
+                    if(map_generator(queue, ev, timer)==-1)
+                        return -1;
+                    totalLevels = count_files_in_directory("./levels"); //MAX 8
+                }
             }
         }
 
         // Dibujo
-        if(actualLevel!=0)
-            al_draw_bitmap(level0_bmap,0,0,0);
-        else
+        if(actualLevel>0 && actualLevel<totalLevels+1)
             al_draw_bitmap(level_bmap,0,0,0);
+        else if(actualLevel == totalLevels+1)
+            al_draw_bitmap(create_bmap,0,0,0);
+        else
+            al_draw_bitmap(menu_bmap,0,0,0);
 
         for(i=1; i<=totalLevels; i++)
         {
@@ -3165,8 +3643,8 @@ int level_menu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *tim
         pergaminoy = WINDOW_HEIGHT*3/8 + 20;
     }
 
+    al_destroy_bitmap(menu_bmap);
     al_destroy_bitmap(level_bmap);
-    al_destroy_bitmap(level0_bmap);
     al_destroy_bitmap(pergamino_bmap);
     al_destroy_bitmap(pergaminoSelected_bmap);
 }
@@ -3675,12 +4153,14 @@ int game(int board[MAX_ROWS][MAX_COLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVEN
     {
         Game.score = (-pow((al_get_timer_count(timer) / (float) FPS),2) / 10) + 10000;
         update_score(Game.levelNumber, Game.userName, Game.score);
-        win_mwnu(queue,ev, timer);
+        if(win_mwnu(queue,ev, timer) == -1)
+            return -1;
         return 0;
     }
     else
     {
-        game_over(queue, ev, timer);
+        if(game_over(queue, ev, timer) == -1)
+            return -1;
         return 1;
     }
     return 0;
