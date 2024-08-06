@@ -239,6 +239,16 @@ ALLEGRO_FONT *font; /*Fuente*/
 ALLEGRO_FONT *tinyFont; /*Fuente pequenia*/
 ALLEGRO_TIMER *timer; /*Timer*/
 
+/*Samples*/
+ALLEGRO_SAMPLE *bush_generation_SFX;
+ALLEGRO_SAMPLE *rock_generation_SFX;
+ALLEGRO_SAMPLE *flower_SFX[3];
+ALLEGRO_SAMPLE *new_flowers_SFX;
+ALLEGRO_SAMPLE *boots_SFX;
+ALLEGRO_SAMPLE *bow_SFX;
+ALLEGRO_SAMPLE *potion_SFX;
+ALLEGRO_SAMPLE *rock_wand__SFX;
+
 /*Other variables*/
 bool keys[ALLEGRO_KEY_MAX] = { false }; /* Inicializa todas las teclas como no presionadas. */
 
@@ -270,7 +280,7 @@ int main()
     al_install_keyboard(); // Teclado
     al_install_audio(); // sistema de a udio
     al_init_acodec_addon(); // codecs de audio
-    al_reserve_samples(10);
+    al_reserve_samples(20);
 
     /*Fuentes*/
     font = al_load_ttf_font("./src/fonts/spooky_magic/SpookyMagic.ttf", FONT_SIZE, 0);
@@ -285,7 +295,7 @@ int main()
     //Temporizadores
     timer = al_create_timer(1.0 / FPS);
 
-    //Inicializar cola de eventor
+    //Inicializar cola de eventos
     ALLEGRO_EVENT_QUEUE *event_queue = al_create_event_queue(); /*Creamos cola de eventos*/
     al_register_event_source(event_queue, al_get_display_event_source(window)); /*La ventana puede dar eventos*/
     al_register_event_source(event_queue, al_get_keyboard_event_source());/*El teclado puede dar eventos*/
@@ -1347,6 +1357,9 @@ int object_collision(int board[MAX_ROWS][MAX_COLS], square colisionsquare)
 {
     int i;
 
+    // Variables para escoger sample de musica de recoger objeto aleatorio
+    srand(time(0));
+
     // Objetons normales
     for(i=0; i<Game.totalNormalObjects; i++)
     {
@@ -1354,6 +1367,9 @@ int object_collision(int board[MAX_ROWS][MAX_COLS], square colisionsquare)
         {
             Game.normalObjects[i].state = 1;
             Game.normalObjects[i].cont = OBJECT_TIMER_COUNT;
+
+            // Musica de recoger objeto
+            al_play_sample(flower_SFX[rand()%3], gameConfig.SFXVOLUME, 0, 1, ALLEGRO_PLAYMODE_ONCE, 0);
         }
     }
 
@@ -1370,16 +1386,24 @@ int object_collision(int board[MAX_ROWS][MAX_COLS], square colisionsquare)
             case 0: // Botas
                 Game.specialObjects[i].powerTimer = Game.specialObjects[i].MAXpowerTimer;
                 player1.velocity += 3;
+                // Musica de recoger botas
+                al_play_sample(boots_SFX, gameConfig.SFXVOLUME, 0, 1, ALLEGRO_PLAYMODE_ONCE, 0);
                 break;
             case 1: // Arco
                 Game.specialObjects[i].powerTimer = Game.specialObjects[i].MAXpowerTimer;
                 player1.powerScope += 4;
+                // Musica de recoger Arco
+                al_play_sample(bow_SFX, gameConfig.SFXVOLUME, 0, 1, ALLEGRO_PLAYMODE_ONCE, 0);
                 break;
             case 2: // Pocion
                 player1.hits++;
+                // Musica de recoger Poscion
+                al_play_sample(potion_SFX, gameConfig.SFXVOLUME, 0, 1, ALLEGRO_PLAYMODE_ONCE, 0);
                 break;
             case 3: // Varita de Roca
                 player1.power_hability[1] = true;
+                // Musica de recoger Varita de roca
+                al_play_sample(rock_wand__SFX, gameConfig.SFXVOLUME, 0, 1, ALLEGRO_PLAYMODE_ONCE, 0);
                 break;
             }
         }
@@ -1440,6 +1464,9 @@ bool manage_objects(int board[MAX_ROWS][MAX_COLS])
 
         if(Game.playingNormalObjectType<=Game.MAXNormalObjectType)
         {
+            // Musica de nueva tanda de flores
+            al_play_sample(new_flowers_SFX, gameConfig.SFXVOLUME, 0, 1, ALLEGRO_PLAYMODE_ONCE, 0);
+
             for(i=pasedTypesObjects; i<(pasedTypesObjects + Game.numNormalObjects[Game.playingNormalObjectType]); i++)
             {
                 Game.normalObjects[i].state = -2;
@@ -1652,19 +1679,19 @@ char best_to_pnj_movement(int board[MAX_ROWS][MAX_COLS], enemy enemy , character
     }
 
     // Selección de la mejor dirección
-    if (!mDir[1].obstacle && mDir[1].distanciaEuclidiana < minDistance && (enemy.direction != 'D')) {
+    if (!mDir[1].obstacle && mDir[1].distanciaEuclidiana < minDistance) {
         minDistance = mDir[1].distanciaEuclidiana;
         bestDirection = 'U'; // Arriba
     }
-    if (!mDir[2].obstacle && mDir[2].distanciaEuclidiana < minDistance && (enemy.direction != 'U')) {
+    if (!mDir[2].obstacle && mDir[2].distanciaEuclidiana < minDistance) {
         minDistance = mDir[2].distanciaEuclidiana;
         bestDirection = 'D'; // Abajo
     }
-    if (!mDir[3].obstacle && mDir[3].distanciaEuclidiana < minDistance && (enemy.direction != 'R')) {
+    if (!mDir[3].obstacle && mDir[3].distanciaEuclidiana < minDistance) {
         minDistance = mDir[3].distanciaEuclidiana;
         bestDirection = 'L'; // Izquierda
     }
-    if (!mDir[4].obstacle && mDir[4].distanciaEuclidiana < minDistance && (enemy.direction != 'L')) {
+    if (!mDir[4].obstacle && mDir[4].distanciaEuclidiana < minDistance) {
         minDistance = mDir[4].distanciaEuclidiana;
         bestDirection = 'R'; // Derecha
     }
@@ -3392,7 +3419,6 @@ int game_over(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *time
     al_draw_filled_rectangle(0,0,al_get_display_width(window), al_get_display_height(window), al_map_rgba(0,0,0,200));
     al_draw_bitmap(gameOver_bmp,0,0,0);
     al_flip_display();
-    al_rest(8);
 
     while (!done)
     {
@@ -3450,8 +3476,10 @@ int win_mwnu(ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVENT *ev, ALLEGRO_TIMER *timer
     al_set_target_backbuffer(al_get_current_display());
 
     //Dibujo inicial
-    for(i=0; i<=Game.score; i++)
+    for(i=0; i<=Game.score; i+=5)
     {
+        if(i>(Game.score-5))
+            i = Game.score;
         sprintf(scoreText, "%04d", i);
         al_draw_bitmap(screenshot,0,0,0);
         al_draw_filled_rectangle(0,0,al_get_display_width(window), al_get_display_height(window), al_map_rgba(0,0,0,200));
@@ -3994,6 +4022,18 @@ int game(int board[MAX_ROWS][MAX_COLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVEN
     board_bitmap = al_create_bitmap(Game.gameCols * SQUARE_SIDE, Game.gameRows * SQUARE_SIDE);
     draw_background(board_bitmap);
 
+    /*Cargar samples*/
+    bush_generation_SFX = al_load_sample("./src/music/SFX/bush_generation.mp3");
+    rock_generation_SFX = al_load_sample("./src/music/SFX/rock_generation.mp3");
+    flower_SFX[0] = al_load_sample("./src/music/SFX/flower0.mp3");
+    flower_SFX[1] = al_load_sample("./src/music/SFX/flower1.mp3");
+    flower_SFX[2] = al_load_sample("./src/music/SFX/flower2.mp3");
+    new_flowers_SFX = al_load_sample("./src/music/SFX/new_flowers.mp3");
+    boots_SFX = al_load_sample("./src/music/SFX/boots.mp3");
+    bow_SFX = al_load_sample("./src/music/SFX/bow.mp3");
+    potion_SFX = al_load_sample("./src/music/SFX/potion.mp3");
+    rock_wand__SFX = al_load_sample("./src/music/SFX/rock_wand.mp3");
+
     /*Inicia temporizador*/
     al_set_timer_count(timer, 0);
     al_start_timer(timer);
@@ -4034,6 +4074,15 @@ int game(int board[MAX_ROWS][MAX_COLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVEN
             {
                 if(ice.possible)
                     ice = power(board, player1);
+                switch (player1.powerType) // Para reproducir sonido
+                {
+                case 0:
+                    al_play_sample(bush_generation_SFX, gameConfig.SFXVOLUME, 0, 1, ALLEGRO_PLAYMODE_ONCE, 0);
+                    break;
+                case 1:
+                    al_play_sample(rock_generation_SFX, gameConfig.SFXVOLUME, 0, 1, ALLEGRO_PLAYMODE_ONCE, 0);
+                    break;
+                }
             }
             else if(ev->keyboard.keycode == ALLEGRO_KEY_1)
             {
@@ -4163,5 +4212,16 @@ int game(int board[MAX_ROWS][MAX_COLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVEN
             return -1;
         return 1;
     }
+
+    al_destroy_sample(bush_generation_SFX);
+    al_destroy_sample(rock_generation_SFX);
+    al_destroy_sample(flower_SFX[0]);
+    al_destroy_sample(flower_SFX[1]);
+    al_destroy_sample(flower_SFX[2]);
+    al_destroy_sample(new_flowers_SFX);
+    al_destroy_sample(boots_SFX);
+    al_destroy_sample(bow_SFX);
+    al_destroy_sample(potion_SFX);
+    al_destroy_sample(rock_wand__SFX);
     return 0;
 }
