@@ -1278,10 +1278,10 @@ int get_board(int board[MAX_ROWS][MAX_COLS], char numero[3])
         {
         case 0: //Enemigo tonto
             Game.enemies[i].velocity=3;
-            Game.enemies[i].box.top=20;
-            Game.enemies[i].box.bottom=20;
-            Game.enemies[i].box.left=20;
-            Game.enemies[i].box.right=20;
+            Game.enemies[i].box.top=17;
+            Game.enemies[i].box.bottom=17;
+            Game.enemies[i].box.left=17;
+            Game.enemies[i].box.right=17;
             Game.enemies[i].state=0;
             Game.enemies[i].numSpriteFrames=9;
             sprintf(Game.enemies[i].spriteName, "./src/sprites/enemies/enemy%d.png", Game.enemies[i].type);
@@ -1289,10 +1289,10 @@ int get_board(int board[MAX_ROWS][MAX_COLS], char numero[3])
             break;
         case 1: // Enemigo que te persigue inteligentemente
             Game.enemies[i].velocity=3;
-            Game.enemies[i].box.top=20;
-            Game.enemies[i].box.bottom=20;
-            Game.enemies[i].box.left=20;
-            Game.enemies[i].box.right=20;
+            Game.enemies[i].box.top=17;
+            Game.enemies[i].box.bottom=17;
+            Game.enemies[i].box.left=17;
+            Game.enemies[i].box.right=17;
             Game.enemies[i].state=0;
             Game.enemies[i].numSpriteFrames=9;
             sprintf(Game.enemies[i].spriteName, "./src/sprites/enemies/enemy%d.png", Game.enemies[i].type);
@@ -1300,10 +1300,10 @@ int get_board(int board[MAX_ROWS][MAX_COLS], char numero[3])
             break;
         case 2: // Enemigo que te persigue, si encuentra un obstáculo rompe el bloque de destino
             Game.enemies[i].velocity=3;
-            Game.enemies[i].box.top=20;
-            Game.enemies[i].box.bottom=20;
-            Game.enemies[i].box.left=20;
-            Game.enemies[i].box.right=20;
+            Game.enemies[i].box.top=17;
+            Game.enemies[i].box.bottom=17;
+            Game.enemies[i].box.left=17;
+            Game.enemies[i].box.right=17;
             Game.enemies[i].state=0;
             Game.enemies[i].numSpriteFrames=9;
             Game.enemies[i].direction = to_pnj_movement(board, Game.enemies[i], player1);
@@ -3977,10 +3977,10 @@ int game(int board[MAX_ROWS][MAX_COLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVEN
 
     // Inicializamos al jugador
     player1.direction='D';
-    player1.box.left=25;
-    player1.box.right=25;
-    player1.box.top=25;
-    player1.box.bottom=25;
+    player1.box.left=17;
+    player1.box.right=17;
+    player1.box.top=17;
+    player1.box.bottom=20;
     player1.hited = false;
     player1.hits = 1; // Asignando el numero de vidas del jugador a 1
     player1.direction='D';
