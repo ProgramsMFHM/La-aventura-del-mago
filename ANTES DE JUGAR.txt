@@ -1,0 +1,9 @@
+Bienvenido a la aventura del mago.
+
+Antes de jugar, en caso de que no tengas Allegro instalado en tu equipo por favor entra a la carpeta "Dependences" y copia los archivos que hay ahí dentro de la carpeta "La aventura del Mago". Con esto estás list@ para jugar!
+
+-----------
+
+PDT: Para compilar el archivo usando GCC puedes usar el siguiente comando:
+
+gcc ./icon/icon.o main.c -o juego.exe -lallegro lallegro_image lallegro_font -lallegro_ttf -lallegro_primitives -lallegro_audio -lallegro_acodec

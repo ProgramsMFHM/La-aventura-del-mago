@@ -291,6 +291,9 @@ int main()
     al_set_new_display_flags(ALLEGRO_WINDOWED | ALLEGRO_RESIZABLE);
     window = al_create_display(WINDOW_WIDTH , WINDOW_HEIGHT);
     al_set_target_backbuffer(window);
+    al_set_window_title(window, "La aventura del mago");
+    ALLEGRO_BITMAP *icon = al_load_bitmap("./icon/icon.png");
+    al_set_display_icon(window, icon);
 
     //Temporizadores
     timer = al_create_timer(1.0 / FPS);
@@ -344,7 +347,7 @@ int main()
     whrite_score(); //Guarda el score en archivo
 
     /* Cerrar recursos */
-    al_destroy_display(window);
+    al_destroy_bitmap(icon);
     al_destroy_event_queue(event_queue);
     al_destroy_font(font);
     al_destroy_font(tinyFont);
@@ -355,6 +358,7 @@ int main()
     if (gameMusic.strem) {
         al_destroy_audio_stream(gameMusic.strem);
     }
+    al_destroy_display(window);
     return 0;
 }
 
