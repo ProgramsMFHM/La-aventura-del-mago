@@ -1137,8 +1137,6 @@ int get_board(int board[MAX_ROWS][MAX_COLS], char numero[3])
     for(int i=0; i<NORMAL_OBJECTS_TYPES; i++)
         Game.numNormalObjects[i]=0;
 
-    printf("%s\n", filename);
-
     FILE *game;
 
     if ((game = fopen(filename, "r"))==NULL)
@@ -1273,8 +1271,6 @@ int get_board(int board[MAX_ROWS][MAX_COLS], char numero[3])
         case 3:
             Game.enemies[i].direction='R';
             break;
-        default:
-            printf("Numero al azar: %d",directionNumber);
         }
 
 
@@ -3978,7 +3974,6 @@ int game(int board[MAX_ROWS][MAX_COLS], ALLEGRO_EVENT_QUEUE *queue, ALLEGRO_EVEN
     int i, j;
     char level_string[2];
     sprintf(level_string, "%02d", level);
-    printf("%s\n",level_string);
 
     // Inicializamos al jugador
     player1.direction='D';
